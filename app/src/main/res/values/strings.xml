@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Chirp Comms Client</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="client_id_string">My client id %1$s</string>
+</resources>
