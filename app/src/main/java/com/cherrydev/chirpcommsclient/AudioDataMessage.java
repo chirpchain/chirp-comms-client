@@ -3,13 +3,11 @@ package com.cherrydev.chirpcommsclient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * Created by alannon on 2015-06-25.
- */
 public class AudioDataMessage extends AddressableMessage {
     private byte[] data;
     private int sampleRate;
 
+    @SuppressWarnings("unused")
     public AudioDataMessage() {
 
     }
@@ -18,7 +16,7 @@ public class AudioDataMessage extends AddressableMessage {
         super(json);
     }
 
-    public AudioDataMessage(String from, String to, byte[] data, int sampleRate) {
+    public AudioDataMessage(int from, int to, byte[] data, int sampleRate) {
         super(from, to);
         this.data = data;
         this.sampleRate = sampleRate;

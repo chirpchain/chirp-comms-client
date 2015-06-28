@@ -3,7 +3,6 @@ package com.cherrydev.chirpcommsclient;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -17,9 +16,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Timer;
+
 
 public class ChirpNetworkCommsService extends Service {
 
@@ -37,8 +37,6 @@ public class ChirpNetworkCommsService extends Service {
     private Socket mSocket;
     private int mPeerId;
     private Set<Integer> mConnectedPeers = new HashSet<>();
-    private Handler mHandler = new Handler();
-    private Timer mTimer = new Timer();
     private IntLongMap mRecievedDataStats = new IntLongHashMap();
 
 
@@ -72,6 +70,13 @@ public class ChirpNetworkCommsService extends Service {
         mListeners.remove(listener);
     }
 
+    public boolean sendAudioData(AudioDataMessage message) {
+        if (! mConnectedPeers.contains(message.getTo())) return false;
+        message.setFrom(mPeerId);
+        mSocket.emit(AUDIO_DATA_EVENT, message.getJson(null));
+        return true;
+    }
+
     private Runnable runSocketServerTask = () -> {
         try{
             mSocket = IO.socket("http://10.0.2.2:3000");
@@ -83,7 +88,7 @@ public class ChirpNetworkCommsService extends Service {
             mSocket.on(AUDIO_DATA_EVENT, args -> {
                 AudioDataMessage message = new AudioDataMessage((JSONObject) args[0]);
                 long length = message.getData().length;
-                mRecievedDataStats.putOrAdd(Integer.parseInt(message.getFrom()), length, length);
+                mRecievedDataStats.putOrAdd(message.getFrom(), length, length);
                 forEachListener(l -> l.receiveAudioData(message));
             });
 
@@ -113,7 +118,9 @@ public class ChirpNetworkCommsService extends Service {
                     JSONArray peerIdArray = ((JSONArray) args[0]);
                     mConnectedPeers.clear();
                     for (int i = 0; i < peerIdArray.length(); i++) {
-                        mConnectedPeers.add(peerIdArray.getInt(i));
+                        int peerId = peerIdArray.getInt(i);
+                        if (peerId == mPeerId) continue;
+                        mConnectedPeers.add(peerId);
                     }
                     forEachListener(l -> l.receivePeerList(mConnectedPeers));
                     checkReady();
@@ -123,9 +130,7 @@ public class ChirpNetworkCommsService extends Service {
             });
 
             mSocket.on(Socket.EVENT_DISCONNECT, args -> onDisconnect());
-            mSocket.on(Socket.EVENT_CONNECT_ERROR, args -> {
-                Log.d("SocketIO", "Connection Error! " + args[0]);
-            });
+            mSocket.on(Socket.EVENT_CONNECT_ERROR, args -> Log.d("SocketIO", "Connection Error! " + args[0]));
             mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, args -> Log.d("SocketIO", "Connection timeout!"));
             mSocket.on(Socket.EVENT_ERROR, args -> {
                 Throwable e = args.length >= 0 && args[0] instanceof Throwable ? ((Throwable)args[0]) : null;
@@ -133,7 +138,7 @@ public class ChirpNetworkCommsService extends Service {
                     Log.e(TAG_SOCKET, "Socket error", e);
                 }
                 else {
-                    Log.e(TAG_SOCKET, "Socket error, but no throwable! Args were:" + (args.length == 1 ? args[0].toString() : args.toString()));
+                    Log.e(TAG_SOCKET, "Socket error, but no throwable! Args were:" + (args.length == 1 ? args[0].toString() : Arrays.toString(args)));
                 }
             });
             mSocket.connect();
@@ -156,13 +161,13 @@ public class ChirpNetworkCommsService extends Service {
     private void onConnect() {
         mSocket.emit(ASSIGN_ME_AN_ID_EVENT, 0);
         mSocket.emit("listPeers", 0);
-        forEachListener(l -> l.connected());
+        forEachListener(ChirpCommsServiceListener::connected);
         checkReady();
     }
 
     private void onReady() {
         Log.i(TAG_SOCKET, "Ready now!");
-        forEachListener(l -> l.ready());
+        forEachListener(ChirpCommsServiceListener::ready);
     }
 
     private void onDisconnect() {
@@ -170,10 +175,11 @@ public class ChirpNetworkCommsService extends Service {
         mPeerId = -1;
         mIsReady = false;
         Log.i(TAG_SOCKET, "Disconnected");
-        forEachListener(l -> l.disconnected());
+        forEachListener(ChirpCommsServiceListener::disconnected);
     }
 
     private void onGotClientId(final int id) {
+        mPeerId = id;
         Log.d("SocketIO", "I was given a socket id of " + mPeerId);
         forEachListener(l -> l.peerIdSet(id));
         checkReady();

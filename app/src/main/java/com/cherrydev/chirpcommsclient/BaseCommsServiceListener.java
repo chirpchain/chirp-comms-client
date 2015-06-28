@@ -2,9 +2,6 @@ package com.cherrydev.chirpcommsclient;
 
 import java.util.Set;
 
-/**
- * Created by alannon on 2015-06-27.
- */
 public class BaseCommsServiceListener implements ChirpCommsServiceListener {
     @Override
     public void peerIdSet(int peerId) {

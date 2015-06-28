@@ -3,9 +3,6 @@ package com.cherrydev.chirpcommsclient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * Created by alannon on 2015-06-25.
- */
 public class BinaryMessage extends AddressableMessage {
     private byte[] data;
 
@@ -25,7 +22,7 @@ public class BinaryMessage extends AddressableMessage {
         super(json);
     }
 
-    public BinaryMessage(String from, String to, byte[] data) {
+    public BinaryMessage(int from, int to, byte[] data) {
         super(from, to);
         this.data = data;
     }

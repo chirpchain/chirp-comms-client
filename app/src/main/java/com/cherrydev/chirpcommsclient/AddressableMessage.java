@@ -3,26 +3,24 @@ package com.cherrydev.chirpcommsclient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/**
- * Created by alannon on 2015-06-25.
- */
-public class AddressableMessage implements JSONBackedObject {
-    private String from;
-    private String to;
 
-    public String getFrom() {
+public class AddressableMessage implements JSONBackedObject {
+    private int from;
+    private int to;
+
+    public int getFrom() {
         return from;
     }
 
-    public void setFrom(String from) {
+    public void setFrom(int from) {
         this.from = from;
     }
 
-    public String getTo() {
+    public int getTo() {
         return to;
     }
 
-    public void setTo(String to) {
+    public void setTo(int to) {
         this.to = to;
     }
 
@@ -34,7 +32,7 @@ public class AddressableMessage implements JSONBackedObject {
         setFromJson(json);
     }
 
-    public AddressableMessage(String from, String to) {
+    public AddressableMessage(int from, int to) {
         this.from = from;
         this.to = to;
     }
@@ -43,8 +41,8 @@ public class AddressableMessage implements JSONBackedObject {
     public void setFromJson(JSONObject json) {
 
         try {
-            setFrom(json.getString("from"));
-            setTo(json.getString("to"));
+            setFrom(json.getInt("from"));
+            setTo(json.getInt("to"));
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }

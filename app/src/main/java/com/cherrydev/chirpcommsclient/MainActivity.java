@@ -1,6 +1,10 @@
 package com.cherrydev.chirpcommsclient;
 
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Handler;
+import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,22 +19,9 @@ import android.widget.TextView;
 
 import com.carrotsearch.hppc.IntLongHashMap;
 import com.carrotsearch.hppc.IntLongMap;
-import com.carrotsearch.hppc.cursors.IntCursor;
 import com.carrotsearch.hppc.cursors.IntLongCursor;
-import com.github.nkzawa.emitter.Emitter;
-import com.github.nkzawa.socketio.client.IO;
-import com.github.nkzawa.socketio.client.Socket;
-import com.github.nkzawa.socketio.parser.Binary;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
@@ -39,85 +30,114 @@ import java.util.TimerTask;
 
 public class MainActivity extends ActionBarActivity {
 
-    private static final String TAG_SOCKET = "SocketIO";
+    private static final String TAG_ACTIVITY = "MainActivity";
 
+    @SuppressWarnings({"unused", "FieldCanBeLocal"})
+    private boolean mIsReady;
 
-    private static final String PEER_DISCONNECTED_EVENT = "peerDisconnected";
-    private static final String AUDIO_DATA_EVENT = "audioData";
-    private static final String ASSIGN_ME_AN_ID_EVENT = "assignMeAnId";
-    private static final String SET_CLIENT_ID_EVENT = "setClientId";
-    private static final String NEW_PEER_EVENT = "newPeer";
+    private int mMyPeerId;
+    private Set<Integer> mConnectedPeers = new HashSet<>();
+    private Handler mHandler = new Handler();
+    private Timer mTime = new Timer();
+    private TimerTask mSendAudioTask;
+    private TimerTask mDisplayStatsTask;
+    private IntLongMap mReceivedDataStats = new IntLongHashMap();
 
-    private boolean isReady;
-    private Socket socket;
-    private int socketId;
-    private Set<Integer> connectedPeers = new HashSet<>();
-    private Handler handler = new Handler();
-    private Timer timer = new Timer();
-    private TimerTask sendAudioTask;
-    private TimerTask displayStatsTask;
-    private IntLongMap recievedDataStats = new IntLongHashMap();
-
-    private TextView clientIdText;
-    private ListView recievedStatsList;
+    private TextView mClientIdText;
+    private ListView mReceivedStatsList;
+    private ChirpNetworkCommsService mCommsService;
+    private ChirpCommsServiceListener mCommsListener;
+    private ServiceConnection mCommsServiceConnection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        clientIdText = (TextView) findViewById(R.id.clientIdText);
-        recievedStatsList = (ListView) findViewById(R.id.recievedStatsList);
+        mClientIdText = (TextView) findViewById(R.id.clientIdText);
+        mReceivedStatsList = (ListView) findViewById(R.id.receivedStatsList);
         updateStatsList();
-        try{
-            socket = IO.socket("http://10.0.2.2:3000");
-            socket.on(Socket.EVENT_CONNECT, args -> {
-                Log.d(TAG_SOCKET, "Connected!");
-                onConnect();
-            }).on(AUDIO_DATA_EVENT, args -> {
-                AudioDataMessage message = new AudioDataMessage((JSONObject) args[0]);
-                long length = message.getData().length;
-                recievedDataStats.putOrAdd(Integer.parseInt(message.getFrom()), length, length);
-                //Log.d("SocketIO", "Audio message was from: " + message.getFrom() + " of length " + message.getData().length);
-            }).on(SET_CLIENT_ID_EVENT, args -> {
-                socketId = getIntArg(args);
-                onGotClientId(socketId);
+    }
 
-            }).on(NEW_PEER_EVENT, args -> {
-                int newPeerId = getIntArg(args);
-                if (newPeerId == socketId) return;
-                Log.d("SocketIO", "New peer ID:" + newPeerId);
-                connectedPeers.add(newPeerId);
-                checkReady();
-                handler.post( () -> updateStatsList() );
-            }).on(PEER_DISCONNECTED_EVENT, args -> {
-                int disconnectedPeerId = getIntArg(args);
-                Log.d("SocketIO", "Peer disconnected:" + disconnectedPeerId);
-                connectedPeers.remove(disconnectedPeerId);
-                handler.post( () -> updateStatsList() );
-            }).on("listPeers", args -> {
-                try {
-                    JSONArray peerIdArray = ((JSONArray)args[0]);
-                    connectedPeers.clear();
-                    for (int i = 0; i < peerIdArray.length(); i++) {
-                        connectedPeers.add(peerIdArray.getInt(i));
-                    }
-                    checkReady();
-                    handler.post(() -> updateStatsList() );
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+    @Override
+    protected void onStart() {
+        super.onStart();
+        Intent serviceIntent = new Intent(this, ChirpNetworkCommsService.class);
+        startService(serviceIntent);
+        bindService(serviceIntent, mCommsServiceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                mCommsService = ((ChirpNetworkCommsService.LocalBinder) service).getService();
+                onBindToService();
+            }
 
-            socket.on(Socket.EVENT_DISCONNECT, args -> onDisconnect());
-            socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
-                        Log.d("SocketIO", "Connection Error! " + args[0]);
-                    });
-            socket.on(Socket.EVENT_CONNECT_TIMEOUT, args -> Log.d("SocketIO", "Connection timeout!"));
-            socket.connect();
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                mCommsService = null;
+                onDisconnectedFromService();
+            }
+        }, 0);
+    }
+
+    @Override
+    protected void onStop() {
+        if (mCommsListener != null) {
+            mCommsService.removeListener(mCommsListener);
+            mCommsListener = null;
         }
-        catch (URISyntaxException e) {
-            throw new RuntimeException(e);
+        if (mCommsServiceConnection != null) {
+            unbindService(mCommsServiceConnection);
+            mCommsService = null;
         }
+        super.onStop();
+    }
+
+    private void onBindToService() {
+        mCommsListener = new BaseCommsServiceListener() {
+            @Override
+            public void ready() {
+                onReady();
+            }
+
+            @Override
+            public void disconnected() {
+                onDisconnect();
+            }
+
+            @Override
+            public void peerIdSet(int peerId) {
+                onGotClientId(peerId);
+            }
+
+            @Override
+            public void peerConnected(int newPeerId) {
+                mConnectedPeers.add(newPeerId);
+                updateStatsList();
+            }
+
+            @Override
+            public void peerDisconnected(int peerId) {
+                mConnectedPeers.remove(peerId);
+                updateStatsList();
+            }
+
+            @Override
+            public void receivePeerList(Set<Integer> peerIds) {
+                mConnectedPeers.clear();
+                mConnectedPeers.addAll(peerIds);
+                updateStatsList();
+            }
+
+            @Override
+            public void receiveAudioData(AudioDataMessage message) {
+                mReceivedDataStats.putOrAdd(message.getFrom(), message.getData().length, message.getData().length);
+
+            }
+        };
+        mCommsService.addListener(mCommsListener);
+    }
+
+    private void onDisconnectedFromService() {
+        mCommsListener = null;
     }
 
     @Override
@@ -142,78 +162,56 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private boolean checkReady() {
-        if(isReady) return true;
-        if(socketId < 0) return false;
-        connectedPeers.remove(socketId);
-        if(connectedPeers.size() == 0) return false;
-        isReady = true;
-        onReady();
-        return true;
-    }
-
-    private void onConnect() {
-        socket.emit(ASSIGN_ME_AN_ID_EVENT, 0);
-        socket.emit("listPeers", 0);
-        checkReady();
-    }
-
     private void onReady() {
-        Log.i(TAG_SOCKET, "Ready now!");
-        sendAudioTask = new SendAudioToConnectedPeersTimerTask();
+        Log.i(TAG_ACTIVITY, "Ready now!");
+        mSendAudioTask = new SendAudioToConnectedPeersTimerTask();
         int packetsPerSecond = 48000 / 960 / 2; // 25
-        timer.scheduleAtFixedRate(sendAudioTask, 0, 1000 / packetsPerSecond);
-        displayStatsTask = new DisplayStatsTimeTask();
-        timer.scheduleAtFixedRate(displayStatsTask, 0, 10000);
+        mTime.scheduleAtFixedRate(mSendAudioTask, 0, 1000 / packetsPerSecond);
+        mDisplayStatsTask = new DisplayStatsTimeTask();
+        mTime.scheduleAtFixedRate(mDisplayStatsTask, 0, 10000);
+        updateStatsList();
     }
 
     private void onDisconnect() {
-        sendAudioTask.cancel();
-        sendAudioTask = null;
-        displayStatsTask.cancel();
-        displayStatsTask = null;
-        connectedPeers.clear();
-        socketId = -1;
-        isReady = false;
-        Log.i(TAG_SOCKET, "Disconnected");
+        mSendAudioTask.cancel();
+        mSendAudioTask = null;
+        mDisplayStatsTask.cancel();
+        mDisplayStatsTask = null;
+        mConnectedPeers.clear();
+        mMyPeerId = -1;
+        mIsReady = false;
+        Log.i(TAG_ACTIVITY, "Disconnected");
     }
 
     private void onGotClientId(final int id) {
-        Log.d("SocketIO", "I was given a socket id of " + socketId);
-        handler.post(() -> {
-            clientIdText.setText(getResources().getString(R.string.client_id_string, id));
-        });
-        checkReady();
+        Log.d("SocketIO", "I was given a socket id of " + mMyPeerId);
+        mHandler.post(() -> mClientIdText.setText(getResources().getString(R.string.client_id_string, id)));
     }
 
     private void updateStatsList() {
-        ArrayAdapter<Integer> adapter = (ArrayAdapter<Integer>) recievedStatsList.getAdapter();
-        if (adapter == null) {
-            adapter = new ArrayAdapter<Integer>(this, android.R.layout.simple_list_item_1, android.R.id.text1) {
-                @Override
-                public View getView(int position, View convertView, ViewGroup parent) {
-                    if (convertView == null) convertView = getLayoutInflater().inflate(android.R.layout.simple_list_item_1, parent, false);
-                    TextView text = (TextView) convertView.findViewById(android.R.id.text1);
-                    int clientId = getItem(position);
-                    long received = recievedDataStats.getOrDefault(clientId, 0);
-                    text.setText("Client id:" + clientId + " received:" + HumanReadableByteLength.humanReadableByteCount(received, false));
-                    return convertView;
-                }
-            };
-            recievedStatsList.setAdapter(adapter);
-        }
-        adapter.clear();
-        for(int clientId : connectedPeers) {
-            adapter.add(clientId);
-        }
-    }
-
-    private int getIntArg(Object[] args) {
-        Object arg = args[0];
-        if (arg instanceof Integer) return (int) arg;
-        else {
-            return Integer.parseInt(arg.toString());
-        }
+        mHandler.post(() -> {
+            @SuppressWarnings("unchecked")
+            ArrayAdapter<Integer> adapter = (ArrayAdapter<Integer>) mReceivedStatsList.getAdapter();
+            if (adapter == null) {
+                adapter = new ArrayAdapter<Integer>(this, android.R.layout.simple_list_item_1, android.R.id.text1) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        if (convertView == null)
+                            convertView = getLayoutInflater().inflate(android.R.layout.simple_list_item_1, parent, false);
+                        TextView text = (TextView) convertView.findViewById(android.R.id.text1);
+                        int clientId = getItem(position);
+                        long received = mReceivedDataStats.getOrDefault(clientId, 0);
+                        text.setText("Client id:" + clientId + " received:" + HumanReadableByteLength.humanReadableByteCount(received, false));
+                        return convertView;
+                    }
+                };
+                mReceivedStatsList.setAdapter(adapter);
+            }
+            adapter.clear();
+            for (int clientId : mConnectedPeers) {
+                adapter.add(clientId);
+            }
+        });
     }
 
     private class SendAudioToConnectedPeersTimerTask extends TimerTask {
@@ -221,10 +219,10 @@ public class MainActivity extends ActionBarActivity {
         public void run() {
             byte[] data = new byte[960];
             random.nextBytes(data);
-            for(int peerId : connectedPeers) {
-                AudioDataMessage m = new AudioDataMessage("" + socketId, "" + peerId, data, 48000);
-                if (! socket.connected()) return;
-                socket.emit(AUDIO_DATA_EVENT, m.getJson(null));
+            for(int peerId : mConnectedPeers) {
+                AudioDataMessage m = new AudioDataMessage(mMyPeerId, peerId, data, 48000);
+                if(mCommsService == null) return;
+                mCommsService.sendAudioData(m);
             }
         }
 
@@ -234,11 +232,11 @@ public class MainActivity extends ActionBarActivity {
 
         public void run() {
             String statsMessage = "Recieve stats";
-            for(IntLongCursor stat : recievedDataStats) {
+            for(IntLongCursor stat : mReceivedDataStats) {
                 statsMessage += "\n\tClient " + stat.key + " received:" + HumanReadableByteLength.humanReadableByteCount(stat.value, false);
             }
-            Log.d(TAG_SOCKET, statsMessage);
-            handler.post(() -> ((BaseAdapter) recievedStatsList.getAdapter()).notifyDataSetChanged());
+            Log.d(TAG_ACTIVITY, statsMessage);
+            mHandler.post(((BaseAdapter) mReceivedStatsList.getAdapter())::notifyDataSetChanged);
         }
     }
 }

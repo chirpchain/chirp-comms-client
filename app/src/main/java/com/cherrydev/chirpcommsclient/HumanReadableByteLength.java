@@ -1,8 +1,6 @@
 package com.cherrydev.chirpcommsclient;
 
-/**
- * Created by alannon on 2015-06-27.
- */
+
 public class HumanReadableByteLength {
     // https://stackoverflow.com/questions/3758606/how-to-convert-byte-size-into-human-readable-format-in-java
     // Perhaps the cleverest code I've seen all day:
