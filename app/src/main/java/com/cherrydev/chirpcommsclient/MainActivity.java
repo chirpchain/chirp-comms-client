@@ -14,13 +14,24 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.carrotsearch.hppc.IntLongHashMap;
 import com.carrotsearch.hppc.IntLongMap;
 import com.carrotsearch.hppc.cursors.IntLongCursor;
+import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
+import com.cherrydev.chirpcommsclient.socketservice.BaseSocketServiceListener;
+import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
+import com.cherrydev.chirpcommsclient.socketservice.SocketService;
+import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
+import com.cherrydev.chirpcommsclient.util.HumanReadableByteLength;
 
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -35,8 +46,6 @@ public class MainActivity extends ActionBarActivity {
     @SuppressWarnings({"unused", "FieldCanBeLocal"})
     private boolean mIsReady;
 
-    private int mMyPeerId;
-    private Set<Integer> mConnectedPeers = new HashSet<>();
     private Handler mHandler = new Handler();
     private Timer mTime = new Timer();
     private TimerTask mSendAudioTask;
@@ -45,9 +54,12 @@ public class MainActivity extends ActionBarActivity {
 
     private TextView mClientIdText;
     private ListView mReceivedStatsList;
-    private ChirpNetworkCommsService mCommsService;
-    private ChirpCommsServiceListener mCommsListener;
-    private ServiceConnection mCommsServiceConnection;
+    private EditText mMessageText;
+    private Button mMessageSendButton;
+
+    private SocketService mSocketService;
+    private SocketServiceListener mSocketServiceListener;
+    private ServiceConnection mSocketServiceConnection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,24 +67,36 @@ public class MainActivity extends ActionBarActivity {
         setContentView(R.layout.activity_main);
         mClientIdText = (TextView) findViewById(R.id.clientIdText);
         mReceivedStatsList = (ListView) findViewById(R.id.receivedStatsList);
+        mMessageText = (EditText) findViewById(R.id.messageText);
+        mMessageSendButton = (Button) findViewById(R.id.messageSendButton);
+
+        mMessageSendButton.setOnClickListener(v -> {
+            String text = mMessageText.getText().toString();
+            for (byte peer : mSocketService.getConnectedPeers()) {
+                ChirpMessage m = new ChirpMessage(mSocketService.getNodeId(), peer, "Joe", "Avi", EnumSet.noneOf(ChirpMessage.MessageFlags.class), text);
+                mSocketService.sendChirpData(new ChirpSocketMessage(mSocketService.getNodeId(), peer, m));
+            }
+            mMessageText.setText("");
+        });
+
         updateStatsList();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        Intent serviceIntent = new Intent(this, ChirpNetworkCommsService.class);
+        Intent serviceIntent = new Intent(this, SocketService.class);
         startService(serviceIntent);
-        bindService(serviceIntent, mCommsServiceConnection = new ServiceConnection() {
+        bindService(serviceIntent, mSocketServiceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
-                mCommsService = ((ChirpNetworkCommsService.LocalBinder) service).getService();
+                mSocketService = ((SocketService.LocalBinder) service).getService();
                 onBindToService();
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
-                mCommsService = null;
+                mSocketService = null;
                 onDisconnectedFromService();
             }
         }, 0);
@@ -80,19 +104,20 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     protected void onStop() {
-        if (mCommsListener != null) {
-            mCommsService.removeListener(mCommsListener);
-            mCommsListener = null;
+        if (mSocketServiceListener != null) {
+            mSocketService.removeListener(mSocketServiceListener);
+            mSocketServiceListener = null;
         }
-        if (mCommsServiceConnection != null) {
-            unbindService(mCommsServiceConnection);
-            mCommsService = null;
+        if (mSocketServiceConnection != null) {
+            unbindService(mSocketServiceConnection);
+            mSocketService = null;
         }
         super.onStop();
     }
 
     private void onBindToService() {
-        mCommsListener = new BaseCommsServiceListener() {
+        Log.i(TAG_ACTIVITY, "Bound to service!");
+        mSocketServiceListener = new BaseSocketServiceListener() {
             @Override
             public void ready() {
                 onReady();
@@ -104,40 +129,46 @@ public class MainActivity extends ActionBarActivity {
             }
 
             @Override
-            public void peerIdSet(int peerId) {
+            public void peerIdSet(byte peerId) {
                 onGotClientId(peerId);
             }
 
             @Override
-            public void peerConnected(int newPeerId) {
-                mConnectedPeers.add(newPeerId);
+            public void peerConnected(byte newPeerId) {
                 updateStatsList();
             }
 
             @Override
-            public void peerDisconnected(int peerId) {
-                mConnectedPeers.remove(peerId);
+            public void peerDisconnected(byte peerId) {
                 updateStatsList();
             }
 
             @Override
-            public void receivePeerList(Set<Integer> peerIds) {
-                mConnectedPeers.clear();
-                mConnectedPeers.addAll(peerIds);
+            public void receivePeerList(Set<Byte> peerIds) {
                 updateStatsList();
             }
 
             @Override
             public void receiveAudioData(AudioDataMessage message) {
                 mReceivedDataStats.putOrAdd(message.getFrom(), message.getData().length, message.getData().length);
+            }
+
+            @Override
+            public void receiveChirpMessage(final ChirpSocketMessage message) {
+                Log.i(TAG_ACTIVITY, "Recieved chirp message: " + message.getMessage().getMessage());
+                mHandler.post(() -> Toast.makeText(MainActivity.this, message.getMessage().getMessage(), Toast.LENGTH_LONG).show());
 
             }
         };
-        mCommsService.addListener(mCommsListener);
+        mSocketService.addListener(mSocketServiceListener);
+        byte peerId = mSocketService.getNodeId();
+        if (peerId >= 0) onGotClientId(peerId);
+        updateStatsList();
+        if (mSocketService.isReady()) onReady();
     }
 
     private void onDisconnectedFromService() {
-        mCommsListener = null;
+        mSocketServiceListener = null;
     }
 
     @Override
@@ -164,27 +195,35 @@ public class MainActivity extends ActionBarActivity {
 
     private void onReady() {
         Log.i(TAG_ACTIVITY, "Ready now!");
+        if (mSendAudioTask != null) {
+            mSendAudioTask.cancel();
+        }
         mSendAudioTask = new SendAudioToConnectedPeersTimerTask();
         int packetsPerSecond = 48000 / 960 / 2; // 25
         mTime.scheduleAtFixedRate(mSendAudioTask, 0, 1000 / packetsPerSecond);
+        if (mDisplayStatsTask != null) {
+            mDisplayStatsTask.cancel();
+        }
         mDisplayStatsTask = new DisplayStatsTimeTask();
         mTime.scheduleAtFixedRate(mDisplayStatsTask, 0, 10000);
         updateStatsList();
     }
 
     private void onDisconnect() {
-        mSendAudioTask.cancel();
-        mSendAudioTask = null;
-        mDisplayStatsTask.cancel();
-        mDisplayStatsTask = null;
-        mConnectedPeers.clear();
-        mMyPeerId = -1;
+        if (mSendAudioTask != null) {
+            mSendAudioTask.cancel();
+            mSendAudioTask = null;
+        }
+        if (mDisplayStatsTask != null) {
+            mDisplayStatsTask.cancel();
+            mDisplayStatsTask = null;
+        }
         mIsReady = false;
         Log.i(TAG_ACTIVITY, "Disconnected");
     }
 
-    private void onGotClientId(final int id) {
-        Log.d("SocketIO", "I was given a socket id of " + mMyPeerId);
+    private void onGotClientId(final byte id) {
+        Log.d(TAG_ACTIVITY, "I was given a socket id of " + mSocketService.getNodeId());
         mHandler.post(() -> mClientIdText.setText(getResources().getString(R.string.client_id_string, id)));
     }
 
@@ -208,8 +247,10 @@ public class MainActivity extends ActionBarActivity {
                 mReceivedStatsList.setAdapter(adapter);
             }
             adapter.clear();
-            for (int clientId : mConnectedPeers) {
-                adapter.add(clientId);
+            if (mSocketService != null) {
+                for (int clientId : mSocketService.getConnectedPeers()) {
+                    adapter.add(clientId);
+                }
             }
         });
     }
@@ -219,10 +260,10 @@ public class MainActivity extends ActionBarActivity {
         public void run() {
             byte[] data = new byte[960];
             random.nextBytes(data);
-            for(int peerId : mConnectedPeers) {
-                AudioDataMessage m = new AudioDataMessage(mMyPeerId, peerId, data, 48000);
-                if(mCommsService == null) return;
-                mCommsService.sendAudioData(m);
+            for(byte peerId : mSocketService.getConnectedPeers()) {
+                AudioDataMessage m = new AudioDataMessage(mSocketService.getNodeId(), peerId, data, 48000);
+                if(mSocketService == null) return;
+                mSocketService.sendAudioData(m);
             }
         }
 

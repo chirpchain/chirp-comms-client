@@ -29,7 +29,9 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
+    //noinspection GradleCompatible
     compile 'com.android.support:appcompat-v7:21.0.3'
     compile 'com.github.nkzawa:socket.io-client:0.5.1'
     compile 'com.carrotsearch:hppc:0.7.1'
+    compile 'org.jdeferred:jdeferred-android-aar:1.2.4'
 }

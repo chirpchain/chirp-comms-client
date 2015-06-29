@@ -20,7 +20,7 @@
         </activity>
 
         <service
-            android:name=".ChirpNetworkCommsService"
+            android:name=".socketservice.SocketService"
             android:enabled="true"
             android:exported="false" >
         </service>

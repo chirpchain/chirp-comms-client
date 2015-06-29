@@ -1,4 +1,4 @@
-package com.cherrydev.chirpcommsclient;
+package com.cherrydev.chirpcommsclient.util;
 
 
 public class HumanReadableByteLength {

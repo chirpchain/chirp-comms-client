@@ -1,4 +1,4 @@
-package com.cherrydev.chirpcommsclient;
+package com.cherrydev.chirpcommsclient.socketmessages;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,11 +12,11 @@ public class AudioDataMessage extends AddressableMessage {
 
     }
 
-    public AudioDataMessage(JSONObject json) {
+    public AudioDataMessage(JSONObject json) throws JSONException {
         super(json);
     }
 
-    public AudioDataMessage(int from, int to, byte[] data, int sampleRate) {
+    public AudioDataMessage(byte from, byte to, byte[] data, int sampleRate) {
         super(from, to);
         this.data = data;
         this.sampleRate = sampleRate;
@@ -39,14 +39,10 @@ public class AudioDataMessage extends AddressableMessage {
     }
 
     @Override
-    public void setFromJson(JSONObject json) {
+    public void setFromJson(JSONObject json) throws JSONException {
         super.setFromJson(json);
-        try {
-            setData((byte[]) json.get("data"));
-            setSampleRate((int) json.get("sampleRate"));
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
+        setData((byte[]) json.get("data"));
+        setSampleRate((int) json.get("sampleRate"));
 
     }
 
@@ -57,7 +53,8 @@ public class AudioDataMessage extends AddressableMessage {
         try {
             json.put("data", getData());
             json.put("sampleRate", getSampleRate());
-        } catch (JSONException e) {
+        }
+        catch (JSONException e) {
             throw new RuntimeException(e);
         }
         return json;
