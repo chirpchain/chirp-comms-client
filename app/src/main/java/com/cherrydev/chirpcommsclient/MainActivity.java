@@ -174,10 +174,6 @@ public class MainActivity extends ActionBarActivity {
             }
         };
         mSocketService.addListener(mSocketServiceListener);
-        byte peerId = mSocketService.getNodeId();
-        if (peerId >= 0) onGotClientId(peerId);
-        updateStatsList();
-        if (mSocketService.isReady()) onReady();
     }
 
     private void onDisconnectedFromService() {

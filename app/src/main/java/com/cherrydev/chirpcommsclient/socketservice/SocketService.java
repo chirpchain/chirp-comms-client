@@ -119,6 +119,11 @@ public class SocketService extends Service {
 
     public void addListener(SocketServiceListener listener) {
         mListeners.add(listener);
+        if (mNodeId >= 0) listener.peerIdSet(mNodeId);
+        if (ready) {
+            listener.ready();
+            listener.receivePeerList(connectedPeers);
+        }
     }
 
     public void removeListener(SocketServiceListener listener) {
