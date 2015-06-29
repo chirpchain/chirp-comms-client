@@ -79,6 +79,10 @@ public class ChirpMessage {
     public ChirpMessage(byte[] bytes) {
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
         try {
+            byte type = dis.readByte();
+            if (type != MessageType.ChirpMessage.typeValue) {
+                throw new IllegalArgumentException("This isn't a chirp message!");
+            }
             mFrom = dis.readByte();
             mTo = dis.readByte();
             sender = dis.readUTF();
@@ -95,6 +99,7 @@ public class ChirpMessage {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bytes);
         try {
+            dos.writeByte(MessageType.ChirpMessage.typeValue);
             dos.writeByte(mFrom);
             dos.writeByte(mTo);
             dos.writeUTF(sender);

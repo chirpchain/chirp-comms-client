@@ -1,6 +1,8 @@
 package com.cherrydev.chirpcommsclient.socketmessages;
 
 
+import com.cherrydev.chirpcommsclient.messages.MessageType;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -14,6 +16,11 @@ public class ByteMessage extends AddressableMessage {
 
     public ByteMessage(JSONObject json) throws JSONException {
         super(json);
+    }
+
+    public MessageType getType() {
+        if (mBytes.length == 0) return null;
+        return MessageType.ofTypeValue(mBytes[0]);
     }
 
     public byte[] getBytes() {

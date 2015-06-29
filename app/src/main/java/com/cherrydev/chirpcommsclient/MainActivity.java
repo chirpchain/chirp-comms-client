@@ -24,6 +24,8 @@ import com.carrotsearch.hppc.IntLongHashMap;
 import com.carrotsearch.hppc.IntLongMap;
 import com.carrotsearch.hppc.cursors.IntLongCursor;
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.messages.MessageType;
+import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.socketservice.BaseSocketServiceListener;
 import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
@@ -74,7 +76,7 @@ public class MainActivity extends ActionBarActivity {
             String text = mMessageText.getText().toString();
             for (byte peer : mSocketService.getConnectedPeers()) {
                 ChirpMessage m = new ChirpMessage(mSocketService.getNodeId(), peer, "Joe", "Avi", EnumSet.noneOf(ChirpMessage.MessageFlags.class), text);
-                mSocketService.sendChirpData(new ChirpSocketMessage(mSocketService.getNodeId(), peer, m));
+                mSocketService.sendByteData(new ByteMessage(mSocketService.getNodeId(), peer, m.toBytes()));
             }
             mMessageText.setText("");
         });
@@ -155,9 +157,20 @@ public class MainActivity extends ActionBarActivity {
 
             @Override
             public void receiveChirpMessage(final ChirpSocketMessage message) {
-                Log.i(TAG_ACTIVITY, "Recieved chirp message: " + message.getMessage().getMessage());
+                Log.i(TAG_ACTIVITY, "Received chirp message: " + message.getMessage().getMessage());
                 mHandler.post(() -> Toast.makeText(MainActivity.this, message.getMessage().getMessage(), Toast.LENGTH_LONG).show());
+            }
 
+            @Override
+            public void receiveByteData(ByteMessage message) {
+                MessageType type = message.getType();
+                if (type == null) {
+                    Log.w(TAG_ACTIVITY, "Received an unknown message");
+                    return;
+                }
+                ChirpMessage m = new ChirpMessage(message.getBytes());
+                Log.i(TAG_ACTIVITY, "Received chirp byte message: " + m.getMessage());
+                mHandler.post(() -> Toast.makeText(MainActivity.this, m.getMessage(), Toast.LENGTH_LONG).show());
             }
         };
         mSocketService.addListener(mSocketServiceListener);
