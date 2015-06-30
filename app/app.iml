@@ -103,5 +103,6 @@
     <orderEntry type="library" exported="" name="socket.io-client-0.5.1" level="project" />
     <orderEntry type="library" exported="" name="okhttp-ws-2.4.0" level="project" />
     <orderEntry type="library" exported="" name="okio-1.4.0" level="project" />
+    <orderEntry type="module" module-name="chirpmodem" exported="" />
   </component>
 </module>

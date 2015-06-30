@@ -34,4 +34,5 @@ dependencies {
     compile 'com.github.nkzawa:socket.io-client:0.5.1'
     compile 'com.carrotsearch:hppc:0.7.1'
     compile 'org.jdeferred:jdeferred-android-aar:1.2.4'
+    compile project(':chirpmodem')
 }
