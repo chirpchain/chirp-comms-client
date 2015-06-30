@@ -32,6 +32,7 @@ import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
 import com.cherrydev.chirpcommsclient.socketservice.SocketService;
 import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.util.HumanReadableByteLength;
+import com.cherrydev.chirpcommsclient.util.ServiceBinding;
 
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -60,8 +61,7 @@ public class MainActivity extends ActionBarActivity {
     private Button mMessageSendButton;
 
     private SocketService mSocketService;
-    private SocketServiceListener mSocketServiceListener;
-    private ServiceConnection mSocketServiceConnection;
+    private ServiceBinding<SocketServiceListener, SocketService> socketServiceBinding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,98 +87,76 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        Intent serviceIntent = new Intent(this, SocketService.class);
-        startService(serviceIntent);
-        bindService(serviceIntent, mSocketServiceConnection = new ServiceConnection() {
+        socketServiceBinding = new ServiceBinding<SocketServiceListener, SocketService>(this, SocketService.class) {
             @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                mSocketService = ((SocketService.LocalBinder) service).getService();
-                onBindToService();
-            }
+            protected SocketServiceListener createListener() {
+                return new BaseSocketServiceListener() {
+                    @Override
+                    public void ready() {
+                        onReady();
+                    }
 
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                mSocketService = null;
-                onDisconnectedFromService();
+                    @Override
+                    public void disconnected() {
+                        onDisconnect();
+                    }
+
+                    @Override
+                    public void peerIdSet(byte peerId) {
+                        onGotClientId(peerId);
+                    }
+
+                    @Override
+                    public void peerConnected(byte newPeerId) {
+                        updateStatsList();
+                    }
+
+                    @Override
+                    public void peerDisconnected(byte peerId) {
+                        updateStatsList();
+                    }
+
+                    @Override
+                    public void receivePeerList(Set<Byte> peerIds) {
+                        updateStatsList();
+                    }
+
+                    @Override
+                    public void receiveAudioData(AudioDataMessage message) {
+                        mReceivedDataStats.putOrAdd(message.getFrom(), message.getData().length, message.getData().length);
+                    }
+
+                    @Override
+                    public void receiveChirpMessage(final ChirpSocketMessage message) {
+                        Log.i(TAG_ACTIVITY, "Received chirp message: " + message.getMessage().getMessage());
+                        mHandler.post(() -> Toast.makeText(MainActivity.this, message.getMessage().getMessage(), Toast.LENGTH_LONG).show());
+                    }
+
+                    @Override
+                    public void receiveByteData(ByteMessage message) {
+                        MessageType type = message.getType();
+                        if (type == null) {
+                            Log.w(TAG_ACTIVITY, "Received an unknown message");
+                            return;
+                        }
+                        ChirpMessage m = new ChirpMessage(message.getBytes());
+                        Log.i(TAG_ACTIVITY, "Received chirp byte message: " + m.getMessage());
+                        mHandler.post(() -> Toast.makeText(MainActivity.this, m.getMessage(), Toast.LENGTH_LONG).show());
+                    }
+                };
             }
-        }, 0);
+        };
+        socketServiceBinding.setOnConnect(s -> mSocketService = s);
+        socketServiceBinding.setOnDisconnect(() -> mSocketService = null);
+        socketServiceBinding.connect();
     }
 
     @Override
     protected void onStop() {
-        if (mSocketServiceListener != null) {
-            mSocketService.removeListener(mSocketServiceListener);
-            mSocketServiceListener = null;
-        }
-        if (mSocketServiceConnection != null) {
-            unbindService(mSocketServiceConnection);
-            mSocketService = null;
-        }
+        socketServiceBinding.disconnect();
         super.onStop();
     }
 
-    private void onBindToService() {
-        Log.i(TAG_ACTIVITY, "Bound to service!");
-        mSocketServiceListener = new BaseSocketServiceListener() {
-            @Override
-            public void ready() {
-                onReady();
-            }
-
-            @Override
-            public void disconnected() {
-                onDisconnect();
-            }
-
-            @Override
-            public void peerIdSet(byte peerId) {
-                onGotClientId(peerId);
-            }
-
-            @Override
-            public void peerConnected(byte newPeerId) {
-                updateStatsList();
-            }
-
-            @Override
-            public void peerDisconnected(byte peerId) {
-                updateStatsList();
-            }
-
-            @Override
-            public void receivePeerList(Set<Byte> peerIds) {
-                updateStatsList();
-            }
-
-            @Override
-            public void receiveAudioData(AudioDataMessage message) {
-                mReceivedDataStats.putOrAdd(message.getFrom(), message.getData().length, message.getData().length);
-            }
-
-            @Override
-            public void receiveChirpMessage(final ChirpSocketMessage message) {
-                Log.i(TAG_ACTIVITY, "Received chirp message: " + message.getMessage().getMessage());
-                mHandler.post(() -> Toast.makeText(MainActivity.this, message.getMessage().getMessage(), Toast.LENGTH_LONG).show());
-            }
-
-            @Override
-            public void receiveByteData(ByteMessage message) {
-                MessageType type = message.getType();
-                if (type == null) {
-                    Log.w(TAG_ACTIVITY, "Received an unknown message");
-                    return;
-                }
-                ChirpMessage m = new ChirpMessage(message.getBytes());
-                Log.i(TAG_ACTIVITY, "Received chirp byte message: " + m.getMessage());
-                mHandler.post(() -> Toast.makeText(MainActivity.this, m.getMessage(), Toast.LENGTH_LONG).show());
-            }
-        };
-        mSocketService.addListener(mSocketServiceListener);
-    }
-
-    private void onDisconnectedFromService() {
-        mSocketServiceListener = null;
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

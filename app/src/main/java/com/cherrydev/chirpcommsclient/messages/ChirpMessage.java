@@ -1,5 +1,9 @@
 package com.cherrydev.chirpcommsclient.messages;
 
+import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
+
+import org.json.JSONException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -139,6 +143,15 @@ public class ChirpMessage {
 
     private byte getFlagValue() {
         return flagByteFromSet(mFlags);
+    }
+
+    @Override
+    public String toString() {
+        try {
+            return new ChirpSocketMessage((byte)0,(byte)0, this).getJson(null).toString(2);
+        } catch (JSONException e) {
+            return "[Exception while encoding in toString()!]";
+        }
     }
 
     public enum MessageFlags {

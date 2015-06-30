@@ -13,6 +13,7 @@ import com.cherrydev.chirpcommsclient.socketmessages.AddressableMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
+import com.cherrydev.chirpcommsclient.util.BaseService;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
@@ -29,8 +30,16 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-
-public class SocketService extends Service {
+/**
+ * The socket service is responsible for any communications between the client application
+ * and the back-end socket.io server.  In production, it is intended to be used to send
+ * messages between nodes and for telemetry of the nodes.
+ * For testing, it is also intended to be able to 'fake' the sending and reception of audio
+ * data between nodes, though this should obviously only be used on a local network as it does
+ * not do anything to try to compress or minimize data transfer.
+ * It can also be used in testing to fake message passing in the intermediary binary layer.
+ */
+public class SocketService extends BaseService<SocketServiceListener> {
 
 
     private static final String TAG_SOCKET = "SocketIO";
@@ -46,7 +55,6 @@ public class SocketService extends Service {
     private static final String LOGIN_EVENT = "login";
     public static final String LIST_PEERS_EVENT = "listPeers";
 
-    private Set<SocketServiceListener> mListeners = new HashSet<>();
     private boolean hasStarted;
     private boolean ready;
     private Socket mSocket;
@@ -56,53 +64,40 @@ public class SocketService extends Service {
 
     private String serverUrl;
 
-    private final IBinder mBinder = new LocalBinder();
-
     public SocketService() {
     }
 
-    public class LocalBinder extends Binder {
-        public SocketService getService() {
-            return SocketService.this;
-        }
+    public static SocketService fromBinder(IBinder binder) {
+        return (SocketService) ((LocalBinder) binder).getService();
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        if (! hasStarted) {
-            hasStarted = true;
-            DeferredManager dm = new DefaultDeferredManager();
-            dm.when(() -> {
-                // Set default...
-                serverUrl = "http://10.0.2.2:3000";
-                File f = new File(Environment.getExternalStorageDirectory() + "/chirpconfig.json");
-                if (!f.canRead()) {
-                    Log.w(TAG_SOCKET, "No config file found");
-                    return;
-                }
-                try {
-                    byte[] fileBytes = new byte[(int) f.length()];
-                    new FileInputStream(f).read(fileBytes);
-                    String fileString = new String(fileBytes);
-                    JSONObject config = new JSONObject(fileString);
-                    String serverUrl = config.optString("serverUrl");
-                    if (serverUrl != null) this.serverUrl = serverUrl;
-                    byte nodeId = (byte) config.optInt("nodeId", -1);
-                    if (nodeId >= 0) this.mNodeId = nodeId;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }).then((x) -> {
-                runSocketServerTask.run();
-            });
-            //new Thread(runSocketServerTask, "Socket Server Startup Thread").start();
-        }
-        return START_STICKY;
+    protected void onStartup() {
+        DeferredManager dm = new DefaultDeferredManager();
+        dm.when(() -> {
+            // Set default...
+            serverUrl = "http://10.0.2.2:3000";
+            File f = new File(Environment.getExternalStorageDirectory() + "/chirpconfig.json");
+            if (!f.canRead()) {
+                Log.w(TAG_SOCKET, "No config file found");
+                return;
+            }
+            try {
+                byte[] fileBytes = new byte[(int) f.length()];
+                new FileInputStream(f).read(fileBytes);
+                String fileString = new String(fileBytes);
+                JSONObject config = new JSONObject(fileString);
+                String serverUrl = config.optString("serverUrl");
+                if (serverUrl != null) this.serverUrl = serverUrl;
+                byte nodeId = (byte) config.optInt("nodeId", -1);
+                if (nodeId >= 0) this.mNodeId = nodeId;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).then((x) -> {
+            runSocketServerTask.run();
+        });
     }
 
     public Set<Byte> getConnectedPeers() {
@@ -117,8 +112,9 @@ public class SocketService extends Service {
         return ready;
     }
 
+    @Override
     public void addListener(SocketServiceListener listener) {
-        mListeners.add(listener);
+        super.addListener(listener);
         if (mNodeId >= 0) listener.peerIdSet(mNodeId);
         if (ready) {
             listener.ready();
@@ -126,9 +122,6 @@ public class SocketService extends Service {
         }
     }
 
-    public void removeListener(SocketServiceListener listener) {
-        mListeners.remove(listener);
-    }
 
     public boolean sendAudioData(AudioDataMessage message) {
         return sendMessage(AUDIO_DATA_EVENT, message);
@@ -308,7 +301,8 @@ public class SocketService extends Service {
         }
     }
 
-    private void handleListenerException(Throwable e) {
+    @Override
+    protected void handleListenerException(Throwable e) {
         Log.w(TAG_SOCKET, "Unhandled exception in listener", e);
     }
 
@@ -334,18 +328,4 @@ public class SocketService extends Service {
         recievedDataStats.putOrAdd(message.getFrom(), length, length);
     }
 
-    private void forEachListener(EachListenerAction action) {
-        for(SocketServiceListener listener : mListeners) {
-            try {
-                action.eachListener(listener);
-            }
-            catch (Exception e) {
-                handleListenerException(e);
-            }
-        }
-    }
-
-    private interface EachListenerAction {
-        void eachListener(SocketServiceListener listener);
-    }
 }
