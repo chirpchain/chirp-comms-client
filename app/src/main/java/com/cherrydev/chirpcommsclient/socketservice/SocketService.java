@@ -14,6 +14,7 @@ import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.util.BaseService;
+import com.cherrydev.chirpcommsclient.util.IdGenerator;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
@@ -289,6 +290,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private void onGotClientId(final byte id) {
         mNodeId = id;
         Log.d(TAG_SOCKET, "I was given a socket id of " + mNodeId);
+        IdGenerator.setHighByte(mNodeId);
         forEachListener(l -> l.peerIdSet(id));
         checkReady();
     }
@@ -320,7 +322,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
         }
         else if (message instanceof ChirpSocketMessage) {
             // Inefficient, but messages don't happen too often.
-            length = ((ChirpSocketMessage)message).getMessage().toBytes().length;
+            length = message.getJson(null).toString().getBytes().length;
         }
         else {
             length = 0;

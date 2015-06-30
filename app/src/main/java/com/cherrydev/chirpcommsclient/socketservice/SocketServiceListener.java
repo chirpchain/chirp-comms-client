@@ -2,7 +2,6 @@ package com.cherrydev.chirpcommsclient.socketservice;
 
 import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
-import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 
 import java.util.Set;

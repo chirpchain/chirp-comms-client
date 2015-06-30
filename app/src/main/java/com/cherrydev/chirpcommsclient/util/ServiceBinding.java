@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
+import java8.util.function.Consumer;
+
 public abstract class ServiceBinding<TListener, TService extends BaseService<TListener>> {
     private Context context;
     private Intent serviceIntent;
@@ -14,7 +16,7 @@ public abstract class ServiceBinding<TListener, TService extends BaseService<TLi
     private ServiceConnection serviceConnection;
     private TService service;
     private TListener serviceListener;
-    private OnConnect<TService> onConnect;
+    private Consumer<TService> onConnect;
     private Runnable onDisconnect;
 
     protected ServiceBinding(Context context, Class<TService> serviceClazz) {
@@ -22,35 +24,42 @@ public abstract class ServiceBinding<TListener, TService extends BaseService<TLi
         this.serviceIntent = new Intent(context, serviceClazz);
     }
 
-    public void setOnConnect(OnConnect<TService> onConnect) {
+    public ServiceBinding<TListener, TService> setOnConnect(Consumer<TService> onConnect) {
         this.onConnect = onConnect;
+        return this;
     }
 
-    public void setOnDisconnect(Runnable onDisconnect) {
+    public ServiceBinding<TListener, TService> setOnDisconnect(Runnable onDisconnect) {
         this.onDisconnect = onDisconnect;
+        return this;
     }
 
     public TService getService() {
         return service;
     }
 
-    public void connect() {
+    public ServiceBinding<TListener, TService> connect() {
         context.startService(serviceIntent);
         context.bindService(serviceIntent, serviceConnection = new ServiceConnection() {
             @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
+            public void onServiceConnected(ComponentName name, IBinder binder) {
                 //noinspection unchecked
-                ServiceBinding.this.service = (TService) ((BaseService.LocalBinder)service).getService();
-                ServiceBinding.this.serviceListener = createListener();
+                service = (TService) ((BaseService.LocalBinder)binder).getService();
+                onConnect.accept(service);
+                serviceListener = createListener();
+                service.addListener(serviceListener);
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
+                if (serviceListener != null) service.removeListener(serviceListener);
                 service = null;
                 serviceListener = null;
                 serviceConnection = null;
+                onDisconnect.run();
             }
         }, 0);
+        return this;
     }
 
     public void disconnect() {
@@ -66,8 +75,4 @@ public abstract class ServiceBinding<TListener, TService extends BaseService<TLi
     }
 
     protected abstract TListener createListener();
-
-    public interface OnConnect<TService> {
-        void onConnect(TService service);
-    }
 }

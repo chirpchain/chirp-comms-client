@@ -1,17 +1,21 @@
 package com.cherrydev.chirpcommsclient.routeservice;
 
-import android.app.Service;
-import android.content.Intent;
-import android.os.IBinder;
+import android.util.Log;
 
-import com.cherrydev.chirpcommsclient.messageservice.BaseMessasgeServiceListener;
+import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
+import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.messageservice.BaseMessageServiceListener;
 import com.cherrydev.chirpcommsclient.messageservice.MessageService;
 import com.cherrydev.chirpcommsclient.messageservice.MessageServiceListener;
+import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.socketservice.BaseSocketServiceListener;
 import com.cherrydev.chirpcommsclient.socketservice.SocketService;
 import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
 import com.cherrydev.chirpcommsclient.util.BaseService;
 import com.cherrydev.chirpcommsclient.util.ServiceBinding;
+
+import java.util.Collections;
+import java.util.Set;
 
 /**
  * This service is intended to route messages between nodes.  It is responsible for knowing
@@ -28,6 +32,8 @@ public class RouteService extends BaseService<RouteServiceListener> {
     private ServiceBinding<MessageServiceListener, MessageService> messageServiceBinding;
     private MessageService messageService;
 
+    private static final String TAG_SERVICE = "RouteService";
+
     public RouteService() {
     }
 
@@ -37,25 +43,44 @@ public class RouteService extends BaseService<RouteServiceListener> {
             @Override
             protected SocketServiceListener createListener() {
                 return new BaseSocketServiceListener(){
-
+                    @Override
+                    public void receiveChirpMessage(ChirpSocketMessage message) {
+                        handleSocketChirpReceived(message);
+                    }
                 };
             }
-        };
-        socketServiceBinding.setOnConnect(s -> socketService = s);
-        socketServiceBinding.setOnDisconnect(() -> socketService = null);
-        socketServiceBinding.connect();
+        }
+                .setOnConnect(s -> socketService = s)
+                .setOnDisconnect(() -> socketService = null)
+                .connect();
 
         messageServiceBinding = new ServiceBinding<MessageServiceListener, MessageService>(this, MessageService.class) {
             @Override
             protected MessageServiceListener createListener() {
-                return new BaseMessasgeServiceListener() {
-
+                return new BaseMessageServiceListener() {
+                    @Override
+                    public void receiveChirpMessage(ChirpBinaryMessage m) {
+                        handleBinaryChirpReceived(m);
+                    }
                 };
             }
-        };
-        messageServiceBinding.setOnConnect(s -> messageService = s);
-        messageServiceBinding.setOnDisconnect(() -> messageService = null);
-        messageServiceBinding.connect();
+        }
+                .setOnConnect(s -> messageService = s)
+                .setOnDisconnect(() -> messageService = null)
+                .connect();
+    }
+
+    public Set<Byte> getConnectedNodes() {
+        if (socketService == null) //noinspection unchecked
+            return Collections.EMPTY_SET;
+        return socketService.getConnectedPeers();
+    }
+
+    public boolean sendChirpMessage(ChirpMessage m) {
+        if (messageService == null) return false;
+        // Send direct only, for now, no routing.
+        if (! getConnectedNodes().contains(m.getTo())) return false;
+        return messageService.sendMessage(m.getTo(), new ChirpBinaryMessage(m).toBytes());
     }
 
     @Override
@@ -65,9 +90,22 @@ public class RouteService extends BaseService<RouteServiceListener> {
         super.onDestroy();
     }
 
+    private void handleSocketChirpReceived(ChirpSocketMessage message) {
+        handleChirpReceived(message.getMessage());
+    }
+
+    private void handleBinaryChirpReceived(ChirpBinaryMessage message) {
+        handleChirpReceived(message.getMessage());
+    }
+
+    private void handleChirpReceived(ChirpMessage message) {
+        Log.d(TAG_SERVICE, "Route service received a chirp message from " + message.getFrom() + " to " + message.getTo());
+        forEachListener(l -> l.chirpReceived(message));
+    }
+
     @Override
     protected void handleListenerException(Throwable e) {
-
+        Log.e(TAG_SERVICE, "Exception calling listener", e);
     }
 
 }

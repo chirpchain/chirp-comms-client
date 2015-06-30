@@ -1,7 +1,7 @@
 package com.cherrydev.chirpcommsclient.routeservice;
 
-/**
- * Created by alannon on 2015-06-29.
- */
+import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+
 public interface RouteServiceListener {
+    void chirpReceived(ChirpMessage message);
 }

@@ -1,10 +1,6 @@
 package com.cherrydev.chirpcommsclient;
 
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
 import android.os.Handler;
-import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -23,8 +19,14 @@ import android.widget.Toast;
 import com.carrotsearch.hppc.IntLongHashMap;
 import com.carrotsearch.hppc.IntLongMap;
 import com.carrotsearch.hppc.cursors.IntLongCursor;
+import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.messages.IChirpMessage;
 import com.cherrydev.chirpcommsclient.messages.MessageType;
+import com.cherrydev.chirpcommsclient.messageservice.MessageService;
+import com.cherrydev.chirpcommsclient.messageservice.MessageServiceListener;
+import com.cherrydev.chirpcommsclient.routeservice.RouteService;
+import com.cherrydev.chirpcommsclient.routeservice.RouteServiceListener;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.socketservice.BaseSocketServiceListener;
@@ -32,10 +34,10 @@ import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
 import com.cherrydev.chirpcommsclient.socketservice.SocketService;
 import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.util.HumanReadableByteLength;
+import com.cherrydev.chirpcommsclient.util.IdGenerator;
 import com.cherrydev.chirpcommsclient.util.ServiceBinding;
 
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import java.util.Timer;
@@ -60,8 +62,11 @@ public class MainActivity extends ActionBarActivity {
     private EditText mMessageText;
     private Button mMessageSendButton;
 
-    private SocketService mSocketService;
     private ServiceBinding<SocketServiceListener, SocketService> socketServiceBinding;
+    private SocketService socketService;
+
+    private ServiceBinding<RouteServiceListener, RouteService> routeServiceBinding;
+    private RouteService routeService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,13 +79,13 @@ public class MainActivity extends ActionBarActivity {
 
         mMessageSendButton.setOnClickListener(v -> {
             String text = mMessageText.getText().toString();
-            for (byte peer : mSocketService.getConnectedPeers()) {
-                ChirpMessage m = new ChirpMessage(mSocketService.getNodeId(), peer, "Joe", "Avi", EnumSet.noneOf(ChirpMessage.MessageFlags.class), text);
-                mSocketService.sendByteData(new ByteMessage(mSocketService.getNodeId(), peer, m.toBytes()));
+            int id = IdGenerator.generate();
+            for(byte to : routeServiceBinding.getService().getConnectedNodes()) {
+                ChirpMessage m = new ChirpMessage(socketService.getNodeId(), to, id, EnumSet.noneOf(IChirpMessage.MessageFlags.class), "Avi", "Joe", text);
+                routeServiceBinding.getService().sendChirpMessage(m);
             }
             mMessageText.setText("");
         });
-
         updateStatsList();
     }
 
@@ -125,30 +130,21 @@ public class MainActivity extends ActionBarActivity {
                     public void receiveAudioData(AudioDataMessage message) {
                         mReceivedDataStats.putOrAdd(message.getFrom(), message.getData().length, message.getData().length);
                     }
-
-                    @Override
-                    public void receiveChirpMessage(final ChirpSocketMessage message) {
-                        Log.i(TAG_ACTIVITY, "Received chirp message: " + message.getMessage().getMessage());
-                        mHandler.post(() -> Toast.makeText(MainActivity.this, message.getMessage().getMessage(), Toast.LENGTH_LONG).show());
-                    }
-
-                    @Override
-                    public void receiveByteData(ByteMessage message) {
-                        MessageType type = message.getType();
-                        if (type == null) {
-                            Log.w(TAG_ACTIVITY, "Received an unknown message");
-                            return;
-                        }
-                        ChirpMessage m = new ChirpMessage(message.getBytes());
-                        Log.i(TAG_ACTIVITY, "Received chirp byte message: " + m.getMessage());
-                        mHandler.post(() -> Toast.makeText(MainActivity.this, m.getMessage(), Toast.LENGTH_LONG).show());
-                    }
                 };
             }
-        };
-        socketServiceBinding.setOnConnect(s -> mSocketService = s);
-        socketServiceBinding.setOnDisconnect(() -> mSocketService = null);
-        socketServiceBinding.connect();
+        }
+                .setOnConnect(s -> this.socketService = s)
+                .setOnDisconnect(() -> this.socketService = null)
+                .connect();
+        routeServiceBinding = new ServiceBinding<RouteServiceListener, RouteService>(this, RouteService.class) {
+            @Override
+            protected RouteServiceListener createListener() {
+                return message -> mHandler.post(() ->Toast.makeText(MainActivity.this, "Incoming: " + message.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }
+                .setOnConnect(s -> this.routeService = s)
+                .setOnDisconnect(() -> this.routeService = null)
+                .connect();
     }
 
     @Override
@@ -210,7 +206,7 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void onGotClientId(final byte id) {
-        Log.d(TAG_ACTIVITY, "I was given a socket id of " + mSocketService.getNodeId());
+        Log.d(TAG_ACTIVITY, "I was given a socket id of " + socketService.getNodeId());
         mHandler.post(() -> mClientIdText.setText(getResources().getString(R.string.client_id_string, id)));
     }
 
@@ -234,8 +230,8 @@ public class MainActivity extends ActionBarActivity {
                 mReceivedStatsList.setAdapter(adapter);
             }
             adapter.clear();
-            if (mSocketService != null) {
-                for (int clientId : mSocketService.getConnectedPeers()) {
+            if (socketService != null) {
+                for (int clientId : socketService.getConnectedPeers()) {
                     adapter.add(clientId);
                 }
             }
@@ -247,10 +243,10 @@ public class MainActivity extends ActionBarActivity {
         public void run() {
             byte[] data = new byte[960];
             random.nextBytes(data);
-            for(byte peerId : mSocketService.getConnectedPeers()) {
-                AudioDataMessage m = new AudioDataMessage(mSocketService.getNodeId(), peerId, data, 48000);
-                if(mSocketService == null) return;
-                mSocketService.sendAudioData(m);
+            for(byte peerId : socketService.getConnectedPeers()) {
+                AudioDataMessage m = new AudioDataMessage(socketService.getNodeId(), peerId, data, 48000);
+                if(socketService == null) return;
+                socketService.sendAudioData(m);
             }
         }
 

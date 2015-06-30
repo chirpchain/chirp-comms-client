@@ -1,13 +1,8 @@
 package com.cherrydev.chirpcommsclient.messageservice;
 
-import android.app.Service;
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.IBinder;
 import android.util.Log;
 
-import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 import com.cherrydev.chirpcommsclient.messages.MessageType;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketservice.BaseSocketServiceListener;
@@ -82,7 +77,7 @@ public class MessageService extends BaseService<MessageServiceListener> {
 
     private void onReceiveChirpMessage(byte from, byte[] message) {
         try {
-            ChirpMessage m = new ChirpMessage(message);
+            ChirpBinaryMessage m = new ChirpBinaryMessage(message);
             Log.d(TAG_SERVICE, "Received chirp message from " + from + ":\n" + m.toString());
             forEachListener(l -> l.receiveChirpMessage(m));
         }

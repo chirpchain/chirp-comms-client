@@ -1,121 +1,104 @@
 package com.cherrydev.chirpcommsclient.messages;
 
-import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
-
-import org.json.JSONException;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.util.EnumSet;
 
-public class ChirpMessage {
-    private byte mFrom;
-    private byte mTo;
+public class ChirpMessage implements IChirpMessage {
+
+    private byte from;
+    private byte to;
+    private int messageId;
+    private EnumSet<MessageFlags> flags = EnumSet.noneOf(MessageFlags.class);
     private String sender;
     private String recipient;
-    private EnumSet<MessageFlags> mFlags = EnumSet.noneOf(MessageFlags.class);
     private String message;
 
-    public ChirpMessage(byte mFrom, byte mTo, String sender, String recipient, EnumSet<MessageFlags> mFlags, String message) {
-        this.mFrom = mFrom;
-        this.mTo = mTo;
+    public ChirpMessage(byte from, byte to, int messageId, EnumSet<MessageFlags> flags, String sender, String recipient, String message) {
+        this.from = from;
+        this.to = to;
+        this.messageId = messageId;
+        this.flags = flags;
         this.sender = sender;
         this.recipient = recipient;
-        this.mFlags = mFlags;
         this.message = message;
     }
 
+    @Override
+    public int getMessageId() {
+        return messageId;
+    }
+
+    @Override
+    public void setMessageId(int messageId) {
+        this.messageId = messageId;
+    }
+
+    @Override
     public byte getFrom() {
-        return mFrom;
+        return from;
     }
 
-    public void setFrom(byte mFrom) {
-        this.mFrom = mFrom;
+    @Override
+    public void setFrom(byte from) {
+        this.from = from;
     }
 
+    @Override
     public byte getTo() {
-        return mTo;
+        return to;
     }
 
-    public void setTo(byte mTo) {
-        this.mTo = mTo;
+    @Override
+    public void setTo(byte to) {
+        this.to = to;
     }
 
+    @Override
     public String getSender() {
         return sender;
     }
 
+    @Override
     public void setSender(String sender) {
         this.sender = sender;
     }
 
+    @Override
     public String getRecipient() {
         return recipient;
     }
 
+    @Override
     public void setRecipient(String recipient) {
         this.recipient = recipient;
     }
 
+    @Override
     public String getMessage() {
         return message;
     }
 
+    @Override
     public void setMessage(String message) {
         this.message = message;
     }
 
+    @Override
     public byte getFlagByte() {
         return getFlagValue();
     }
 
+    @Override
     public void setFlag(MessageFlags flag) {
-        mFlags.add(flag);
+        flags.add(flag);
     }
 
+    @Override
     public void removeFlag(MessageFlags flag) {
-        mFlags.remove(flag);
+        flags.remove(flag);
     }
 
-    public ChirpMessage(byte[] bytes) {
-        DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
-        try {
-            byte type = dis.readByte();
-            if (type != MessageType.ChirpMessage.typeValue) {
-                throw new IllegalArgumentException("This isn't a chirp message!");
-            }
-            mFrom = dis.readByte();
-            mTo = dis.readByte();
-            sender = dis.readUTF();
-            recipient = dis.readUTF();
-            setFlagValue(dis.readByte());
-            message = dis.readUTF();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    public byte[] toBytes() {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(bytes);
-        try {
-            dos.writeByte(MessageType.ChirpMessage.typeValue);
-            dos.writeByte(mFrom);
-            dos.writeByte(mTo);
-            dos.writeUTF(sender);
-            dos.writeUTF(recipient);
-            dos.writeByte(getFlagValue());
-            dos.writeUTF(message);
-            dos.flush();
-            return bytes.toByteArray();
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    private byte getFlagValue() {
+        return flagByteFromSet(flags);
     }
 
     public static EnumSet<MessageFlags> flagSetFromByte(byte flag) {
@@ -135,30 +118,5 @@ public class ChirpMessage {
             value |= flag.getStatusFlagValue();
         }
         return value;
-    }
-
-    private void setFlagValue(byte flag) {
-        mFlags = flagSetFromByte(flag);
-    }
-
-    private byte getFlagValue() {
-        return flagByteFromSet(mFlags);
-    }
-
-    @Override
-    public String toString() {
-        try {
-            return new ChirpSocketMessage((byte)0,(byte)0, this).getJson(null).toString(2);
-        } catch (JSONException e) {
-            return "[Exception while encoding in toString()!]";
-        }
-    }
-
-    public enum MessageFlags {
-        Public;
-
-        public byte getStatusFlagValue(){
-            return (byte) (1 << this.ordinal());
-        }
     }
 }

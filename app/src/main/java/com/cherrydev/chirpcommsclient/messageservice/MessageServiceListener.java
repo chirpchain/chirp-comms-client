@@ -1,8 +1,8 @@
 package com.cherrydev.chirpcommsclient.messageservice;
 
-import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
+import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 
 
 public interface MessageServiceListener {
-    void receiveChirpMessage(ChirpMessage m);
+    void receiveChirpMessage(ChirpBinaryMessage m);
 }
