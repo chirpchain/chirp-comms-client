@@ -1,5 +1,6 @@
 package com.cherrydev.chirpcommsclient.socketmessages;
 
+import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
 
 import org.json.JSONException;
@@ -32,11 +33,12 @@ public class ChirpSocketMessage extends AddressableMessage {
         super.setFromJson(json);
         byte from = (byte) json.getInt("chirpFrom");
         byte to = (byte) json.getInt("chirpTo");
+        int messageId = json.getInt("messageId");
         byte flag = (byte) json.getInt("flag");
         String sender = json.getString("sender");
         String recipient = json.getString("recipient");
         String message = json.getString("message");
-        this.message = new ChirpMessage(from, to, sender, recipient, ChirpMessage.flagSetFromByte(flag), message);
+        this.message = new ChirpMessage(from, to, messageId, ChirpMessage.flagSetFromByte(flag), sender, recipient, message);
     }
 
     @Override
@@ -46,6 +48,7 @@ public class ChirpSocketMessage extends AddressableMessage {
         try {
             json.put("chirpFrom", this.message.getFrom());
             json.put("chirpTo", this.message.getTo());
+            json.put("messageId", this.message.getMessageId());
             json.put("flag", this.message.getFlagByte());
             json.put("sender", this.message.getSender());
             json.put("recipient", this.message.getRecipient());

@@ -24,6 +24,16 @@
             android:enabled="true"
             android:exported="false" >
         </service>
+        <service
+            android:name=".messageservice.MessageService"
+            android:enabled="true"
+            android:exported="false" >
+        </service>
+        <service
+            android:name=".routeservice.RouteService"
+            android:enabled="true"
+            android:exported="false" >
+        </service>
     </application>
 
 </manifest>

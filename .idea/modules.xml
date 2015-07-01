@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/ChirpCommsClient.iml" filepath="$PROJECT_DIR$/ChirpCommsClient.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chirp-comms-client.iml" filepath="$PROJECT_DIR$/chirp-comms-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chirpmodem/chirpmodem.iml" filepath="$PROJECT_DIR$/chirpmodem/chirpmodem.iml" />
     </modules>
   </component>
 </project>
