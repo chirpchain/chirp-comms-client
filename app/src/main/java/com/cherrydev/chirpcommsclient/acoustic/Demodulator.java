@@ -17,6 +17,10 @@ public class Demodulator {
                 new LiveFrequencyTransformer(true, false));
     }
 
+    public boolean isCarrierPresent() {
+        return hasNextReceivedSymbol();
+    }
+
     public boolean hasNextReceivedSymbol() {
         update();
         return recognizer.hasNextSymbol();

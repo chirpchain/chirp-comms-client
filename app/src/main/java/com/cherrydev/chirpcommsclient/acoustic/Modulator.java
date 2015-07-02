@@ -2,20 +2,17 @@ package com.cherrydev.chirpcommsclient.acoustic;
 
 import com.cherrydev.chirpcommsclient.acoustic.util.CodeLibrary;
 
-import java.util.Vector;
-
 /**
  * Created by jlunder on 6/29/15.
  */
 public class Modulator {
-    int MAX_SYMBOL_BUFFER = PacketEncoder.MAX_PACKET_SYMBOLS * 2;
+    int MAX_SYMBOL_BUFFER = PacketCodec.MAX_PACKET_SYMBOLS * 2;
     static CodeLibrary library = CodeLibrary.makeChirpCodes();
 
     private AudioTransmitter transmitter;
     private int[] sendQueue = new int[MAX_SYMBOL_BUFFER];
     private int sendQueueHead = 0;
     private int sendQueueTail = 0;
-    private int symbolsConsumed;
 
     public Modulator(AudioTransmitter transmitter) {
         this.transmitter = transmitter;
@@ -27,6 +24,16 @@ public class Modulator {
         }
         for(int sym : symbols) {
             sendQueue[sendQueueHead++] = sym;
+            sendQueueHead %= sendQueue.length;
+        }
+    }
+
+    public void delaySend(int delaySymbols) {
+        if(getSendQueueFree() < delaySymbols) {
+            throw new IllegalStateException("Trying to delay but the send queue is full!");
+        }
+        for(int i = 0; i < delaySymbols; ++i) {
+            sendQueue[sendQueueHead++] = -1;
             sendQueueHead %= sendQueue.length;
         }
     }

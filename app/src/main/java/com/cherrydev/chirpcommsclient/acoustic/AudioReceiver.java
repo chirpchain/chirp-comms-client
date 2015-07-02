@@ -9,6 +9,7 @@ public abstract class AudioReceiver {
     public float getSampleRate() {
         return sampleRate;
     }
+
     public abstract int getAndResetDroppedSampleCount();
     public abstract float[] readAudioBuffer();
 }
