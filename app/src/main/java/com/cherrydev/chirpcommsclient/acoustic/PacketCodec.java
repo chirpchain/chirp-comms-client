@@ -55,6 +55,8 @@ public class PacketCodec {
     private int receivedPacketCurrentSize = 0;
     private byte[] receivedPacket = new byte[MAX_PAYLOAD_BYTES];
 
+    private byte[] validatedReceivedPacket = null;
+
     public PacketCodec(Modulator modulator, Demodulator demodulator) {
         this.modulator = modulator;
         this.demodulator = demodulator;
@@ -69,6 +71,16 @@ public class PacketCodec {
     public int getAndResetGarbledPacketCount() {
         int result = garbledPacketCount;
         garbledPacketCount = 0;
+        return result;
+    }
+
+    public boolean hasNextValidReceivedPacket() {
+        return validatedReceivedPacket != null;
+    }
+
+    public byte[] nextValidReceivedPacket() {
+        byte[] result = validatedReceivedPacket;
+        validatedReceivedPacket = null;
         return result;
     }
 
