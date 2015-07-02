@@ -1,8 +1,8 @@
-package com.cherrydev.chirpcommsclient.acoustic;
+package ca.vectorharmony.chirpmodem;
 
-import com.cherrydev.chirpcommsclient.acoustic.util.CodeRecognizer;
-import com.cherrydev.chirpcommsclient.acoustic.util.LiveFrequencyTransformer;
-import com.cherrydev.chirpcommsclient.acoustic.util.TimeCorrelatingRecognizer;
+import ca.vectorharmony.chirpmodem.util.CodeRecognizer;
+import ca.vectorharmony.chirpmodem.util.LiveFrequencyTransformer;
+import ca.vectorharmony.chirpmodem.util.TimeCorrelatingRecognizer;
 
 /**
  * Created by jlunder on 6/29/15.

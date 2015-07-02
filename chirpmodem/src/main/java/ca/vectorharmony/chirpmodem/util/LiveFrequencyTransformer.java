@@ -1,4 +1,4 @@
-package com.cherrydev.chirpcommsclient.acoustic.util;
+package ca.vectorharmony.chirpmodem.util;
 
 import java.security.InvalidParameterException;
 import java.util.Vector;
@@ -144,7 +144,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
         }
     }
 
-    private float[] rowScratch = new float[FrequencyTransformer.BINS_PER_ROW];
+    private float[] rowScratch = new float[BINS_PER_ROW];
 
     private void generateOneRowFromContiguousSampleBlock(float[] blockSamples) {
         int offset = lastBinRow * BINS_PER_ROW;

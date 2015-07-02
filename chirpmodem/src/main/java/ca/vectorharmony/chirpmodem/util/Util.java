@@ -1,4 +1,4 @@
-package com.cherrydev.chirpcommsclient.acoustic.util;
+package ca.vectorharmony.chirpmodem.util;
 
 /**
  * Created by jlunder on 6/29/15.

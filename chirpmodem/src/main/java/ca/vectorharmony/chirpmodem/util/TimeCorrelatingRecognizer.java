@@ -1,4 +1,4 @@
-package com.cherrydev.chirpcommsclient.acoustic.util;
+package ca.vectorharmony.chirpmodem.util;
 
 import java.util.Random;
 

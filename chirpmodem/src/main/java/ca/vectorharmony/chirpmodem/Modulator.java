@@ -1,6 +1,6 @@
-package com.cherrydev.chirpcommsclient.acoustic;
+package ca.vectorharmony.chirpmodem;
 
-import com.cherrydev.chirpcommsclient.acoustic.util.CodeLibrary;
+import ca.vectorharmony.chirpmodem.util.CodeLibrary;
 
 /**
  * Created by jlunder on 6/29/15.
