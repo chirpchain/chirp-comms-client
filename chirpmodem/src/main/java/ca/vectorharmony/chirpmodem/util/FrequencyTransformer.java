@@ -22,6 +22,7 @@ public abstract class FrequencyTransformer {
     public static final float LOG_MIN_AMPLITUDE = (float)Math.log(MIN_AMPLITUDE);
 
     public abstract float getTime();
+    public abstract int getTimeInRows();
     public abstract int getQueuedRows();
     public abstract int getAvailableRows();
 

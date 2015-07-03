@@ -1,18 +1,27 @@
 package ca.vectorharmony.chirpmodem;
 
 import ca.vectorharmony.chirpmodem.util.CodeLibrary;
+import ca.vectorharmony.chirpmodem.util.FrequencyTransformer;
 
 /**
  * Created by jlunder on 6/29/15.
  */
 public class Modulator {
-    int MAX_SYMBOL_BUFFER = PacketCodec.MAX_PACKET_SYMBOLS * 2;
-    static CodeLibrary library = CodeLibrary.makeChirpCodes();
+    public static final int MAX_SYMBOL_BUFFER = PacketCodec.MAX_PACKET_SYMBOLS * 2;
+
+    static final CodeLibrary library = CodeLibrary.makeChirpCodes();
+
+    private static final float[] idleSilence = new float[
+            (int)Math.ceil(0.5f * library.getMinCodeLength() * FrequencyTransformer.SAMPLE_RATE)];
 
     private AudioTransmitter transmitter;
     private int[] sendQueue = new int[MAX_SYMBOL_BUFFER];
     private int sendQueueHead = 0;
     private int sendQueueTail = 0;
+
+    public CodeLibrary getLibrary() {
+        return library;
+    }
 
     public Modulator(AudioTransmitter transmitter) {
         this.transmitter = transmitter;
@@ -51,19 +60,22 @@ public class Modulator {
     }
 
     public boolean isActive() {
-        return transmitter.isActive() || !isSendQueueEmpty();
+        return !isSendQueueEmpty();
     }
 
     public void update() {
         while(!isSendQueueEmpty()) {
             int nextSym = sendQueue[sendQueueTail];
-            float[] nextCode = library.getCodeForSymbol(nextSym);
+            float[] nextCode = getLibrary().getCodeForSymbol(nextSym);
             if(transmitter.getAvailableBuffer() < nextCode.length) {
                 break;
             }
             transmitter.writeAudioBuffer(nextCode);
             sendQueueTail++;
             sendQueueTail %= sendQueue.length;
+        }
+        while(isSendQueueEmpty() && transmitter.getAvailableBuffer() < idleSilence.length) {
+            transmitter.writeAudioBuffer(idleSilence);
         }
     }
 }

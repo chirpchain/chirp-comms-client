@@ -9,7 +9,7 @@ public abstract class CodeRecognizer {
 
     private boolean hasNextSymbol;
     private int nextSymbol;
-    private float lastSymbolTime = 0f;
+    private int lastSymbolTime = 0;
     private int rowsSinceSymbolDetected = 0;
 
     private float matchBaseThreshold;
@@ -59,7 +59,7 @@ public abstract class CodeRecognizer {
         return sym;
     }
 
-    public float getLastSymbolTime() {
+    public int getLastSymbolTime() {
         return lastSymbolTime;
     }
 
@@ -73,7 +73,7 @@ public abstract class CodeRecognizer {
                 hasNextSymbol = true;
                 rowsSinceSymbolDetected = 0;
                 nextSymbol = matchSym;
-                lastSymbolTime = frequencyTransformer.getTime();
+                lastSymbolTime = frequencyTransformer.getTimeInRows();
                 frequencyTransformer.consumeRows(codeRows - 2);
             } else {
                 ++rowsSinceSymbolDetected;

@@ -16,7 +16,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
     private int consumedSamples = 0;
     private int pendingSamples = 0;
 
-    private long samplesProcessed = 0;
+    private int rowsConsumed = 0;
 
     private boolean adaptiveNoiseReject = true;
     private boolean noiseFloorInited = false;
@@ -24,7 +24,11 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
     private float avgDev = 0.1f;
 
     public float getTime() {
-        return (samplesProcessed - getAvailableRows() * ROW_SAMPLES) / SAMPLE_RATE;
+        return rowsConsumed * ROW_TIME;
+    }
+
+    public int getTimeInRows() {
+        return rowsConsumed;
     }
 
     public int getQueuedRows() {
@@ -76,7 +80,6 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
 
     public void warmup(float[] samples) {
         addSamples(samples);
-        samplesProcessed -= samples.length;
         while(getAvailableRows() > 0) {
             consumeRows(getAvailableRows());
         }
@@ -111,6 +114,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
             throw new InvalidParameterException("numRows exceeds getAvailableRows()");
         }
         firstBinRow = (firstBinRow + numRows) % TOTAL_ROWS;
+        rowsConsumed += numRows;
         tryConsumeSamples();
     }
 
@@ -123,8 +127,6 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
             lastBinRow = (lastBinRow + 1) % TOTAL_ROWS;
             consumedSamples += ROW_SAMPLES;
             flushConsumedSamples();
-
-            samplesProcessed += ROW_SAMPLES;
         }
     }
 
@@ -215,6 +217,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
     public void reset() {
         firstBinRow = lastBinRow = 0;
         pendingSamples = consumedSamples = 0;
+        rowsConsumed = 0;
         sampleBuffer.clear();
     }
 }

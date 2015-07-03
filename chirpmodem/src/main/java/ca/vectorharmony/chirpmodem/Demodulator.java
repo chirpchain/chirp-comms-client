@@ -1,5 +1,6 @@
 package ca.vectorharmony.chirpmodem;
 
+import ca.vectorharmony.chirpmodem.util.CodeLibrary;
 import ca.vectorharmony.chirpmodem.util.CodeRecognizer;
 import ca.vectorharmony.chirpmodem.util.LiveFrequencyTransformer;
 import ca.vectorharmony.chirpmodem.util.TimeCorrelatingRecognizer;
@@ -11,9 +12,13 @@ public class Demodulator {
     AudioReceiver receiver;
     CodeRecognizer recognizer;
 
+    public CodeLibrary getLibrary() {
+        return Modulator.library;
+    }
+
     public Demodulator(AudioReceiver receiver) {
         this.receiver = receiver;
-        this.recognizer = new TimeCorrelatingRecognizer(Modulator.library,
+        this.recognizer = new TimeCorrelatingRecognizer(getLibrary(),
                 new LiveFrequencyTransformer(true, false));
     }
 
@@ -29,6 +34,10 @@ public class Demodulator {
     public int nextReceivedSymbol() {
         update();
         return recognizer.nextSymbol();
+    }
+
+    public int getLastReceivedSymbolTime() {
+        return recognizer.getLastSymbolTime();
     }
 
     private void update() {

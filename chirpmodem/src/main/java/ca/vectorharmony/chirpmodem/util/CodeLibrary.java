@@ -76,6 +76,7 @@ public class CodeLibrary {
     protected float[] breakCodeSamples;
     private float[][] codeSamples = new float[NUM_SYMBOLS][];
     protected Fingerprint[] codeFingerprints =  new Fingerprint[NUM_SYMBOLS];
+    private float minCodeLength = -1f;
     private float maxCodeLength = -1f;
 
     public float[] getCodeForSymbol(int symbol) {
@@ -89,6 +90,23 @@ public class CodeLibrary {
 
     public Fingerprint getFingerprintForSymbol(int symbol) {
         return codeFingerprints[symbol];
+    }
+
+    public int getMinCodeRows() {
+        return (int) Math.floor(getMinCodeLength() / FrequencyTransformer.ROW_TIME);
+    }
+
+    public float getMinCodeLength() {
+        if(minCodeLength < 0) {
+            minCodeLength = getMaxCodeLength();
+
+            for (int i = 0; i < NUM_SYMBOLS; ++i) {
+                minCodeLength = Math.min(minCodeLength,
+                        (float) codeSamples[i].length / FrequencyTransformer.SAMPLE_RATE);
+            }
+        }
+
+        return minCodeLength;
     }
 
     public int getMaxCodeRows() {
