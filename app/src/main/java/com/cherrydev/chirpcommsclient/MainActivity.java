@@ -181,9 +181,11 @@ public class MainActivity extends ActionBarActivity {
         if (mSendAudioTask != null) {
             mSendAudioTask.cancel();
         }
+        /*
         mSendAudioTask = new SendAudioToConnectedPeersTimerTask();
         int packetsPerSecond = 48000 / 960 / 2; // 25
         mTime.scheduleAtFixedRate(mSendAudioTask, 0, 1000 / packetsPerSecond);
+        */
         if (mDisplayStatsTask != null) {
             mDisplayStatsTask.cancel();
         }
@@ -255,11 +257,13 @@ public class MainActivity extends ActionBarActivity {
     private class DisplayStatsTimeTask extends TimerTask {
 
         public void run() {
+            /*
             String statsMessage = "Recieve stats";
             for(IntLongCursor stat : mReceivedDataStats) {
                 statsMessage += "\n\tClient " + stat.key + " received:" + HumanReadableByteLength.humanReadableByteCount(stat.value, false);
             }
             Log.d(TAG_ACTIVITY, statsMessage);
+            */
             mHandler.post(((BaseAdapter) mReceivedStatsList.getAdapter())::notifyDataSetChanged);
         }
     }

@@ -1,5 +1,7 @@
 package com.cherrydev.chirpcommsclient.chirpmodem;
 
+import com.cherrydev.chirpcommsclient.util.AudioConvert;
+
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 
@@ -29,26 +31,18 @@ public class NetworkAudioReceiver extends AudioReceiver{
         ShortBuffer sb = buf.asShortBuffer();
         short[] pcmSamples = new short[sb.limit()];
         sb.get(pcmSamples);
-        return floatFromPcm(pcmSamples);
+        return AudioConvert.convertToFloat(pcmSamples);
     }
 
     public synchronized void receiveAudioData(byte[] sampleData, int sampleRate) {
         buf.compact();
         int dropped = 0;
-        if (sampleData.length > buf.limit()) {
-            dropped = sampleData.length - buf.limit();
+        if (sampleData.length > buf.remaining()) {
+            dropped = sampleData.length - buf.remaining();
         }
         buf.put(sampleData, 0, sampleData.length - dropped);
         this.droppedSamples = dropped / 2;
     }
 
-    private float[] floatFromPcm(short[] samples) {
-        float[] floats = new float[samples.length];
-        for (int i = 0; i < samples.length; i++) {
-            short s = samples[i];
-            float f = s * (1f / 32768f);
-            floats[i] = f;
-        }
-        return floats;
-    }
+
 }

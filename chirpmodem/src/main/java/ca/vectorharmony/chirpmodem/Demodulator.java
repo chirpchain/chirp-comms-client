@@ -43,7 +43,7 @@ public class Demodulator {
     private void update() {
         while(true) {
             float[] buf = receiver.readAudioBuffer();
-            if(buf == null) {
+            if(buf == null || buf.length == 0) {
                 break;
             }
             ((LiveFrequencyTransformer)recognizer.getFrequencyTransformer()).addSamples(buf);

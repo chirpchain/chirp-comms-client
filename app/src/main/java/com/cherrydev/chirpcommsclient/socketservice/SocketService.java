@@ -15,6 +15,7 @@ import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.util.BaseService;
 import com.cherrydev.chirpcommsclient.util.IdGenerator;
+import com.github.nkzawa.socketio.client.Ack;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
 
@@ -54,7 +55,8 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private static final String CHIRP_MESSAGE_DATA_EVENT = "chirpData";
     private static final String CLIENT_ERROR_EVENT = "clientError";
     private static final String LOGIN_EVENT = "login";
-    public static final String LIST_PEERS_EVENT = "listPeers";
+    private static final String LIST_PEERS_EVENT = "listPeers";
+    private static final String PING_EVENT = "ping";
 
     private boolean hasStarted;
     private boolean ready;
@@ -237,7 +239,16 @@ public class SocketService extends BaseService<SocketServiceListener> {
                 }
                 forEachListener(l -> l.clientError(message));
             });
-            mSocket.on(Socket.EVENT_DISCONNECT, args -> onDisconnect());
+            mSocket.on(PING_EVENT, args -> {
+                if (args.length >= 0 && args[0] instanceof Ack) {
+                    Ack ack = (Ack) args[0];
+                    ack.call();
+                }
+            });
+            mSocket.on(Socket.EVENT_DISCONNECT, args -> {
+                mSocket.connect();
+                onDisconnect();
+            });
             mSocket.on(Socket.EVENT_CONNECT_ERROR, args -> Log.d("SocketIO", "Connection Error! " + args[0]));
             mSocket.on(Socket.EVENT_CONNECT_TIMEOUT, args -> Log.d("SocketIO", "Connection timeout!"));
             mSocket.on(Socket.EVENT_ERROR, args -> {
@@ -248,6 +259,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
                 else {
                     Log.e(TAG_SOCKET, "Socket error, but no throwable! Args were:" + (args.length == 1 ? args[0].toString() : Arrays.toString(args)));
                 }
+                if (mSocket.connected()) mSocket.connect();
             });
             mSocket.connect();
         }

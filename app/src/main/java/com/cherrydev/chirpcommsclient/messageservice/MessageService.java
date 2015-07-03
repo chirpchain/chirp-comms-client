@@ -2,6 +2,8 @@ package com.cherrydev.chirpcommsclient.messageservice;
 
 import android.util.Log;
 
+import com.cherrydev.chirpcommsclient.acousticservice.AcousticService;
+import com.cherrydev.chirpcommsclient.acousticservice.AcousticServiceListener;
 import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 import com.cherrydev.chirpcommsclient.messages.MessageType;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
@@ -22,6 +24,9 @@ public class MessageService extends BaseService<MessageServiceListener> {
     private SocketService socketService;
     private ServiceBinding<SocketServiceListener, SocketService> socketServiceBinding;
 
+    private AcousticService acousticService;
+    private ServiceBinding<AcousticServiceListener, AcousticService> acousticServiceBinding;
+
     public MessageService() {
     }
 
@@ -41,6 +46,16 @@ public class MessageService extends BaseService<MessageServiceListener> {
         socketServiceBinding.setOnConnect(s -> socketService = s);
         socketServiceBinding.setOnDisconnect(() -> socketService = null);
         socketServiceBinding.connect();
+
+        acousticServiceBinding = new ServiceBinding<AcousticServiceListener, AcousticService>(this, AcousticService.class) {
+            @Override
+            protected AcousticServiceListener createListener() {
+                return (f,t,m) -> onReceiveMessage(f, m);
+            }
+        }
+                .setOnConnect(s -> acousticService = s)
+                .setOnDisconnect(() -> acousticService = null)
+                .connect();
     }
 
     @Override
@@ -50,9 +65,12 @@ public class MessageService extends BaseService<MessageServiceListener> {
     }
 
     public boolean sendMessage(byte to, byte[] message) {
+        /*
         // For now, pass it to the socketservice
         if (socketService == null) return false;
         return socketService.sendByteData(new ByteMessage(socketService.getNodeId(), to, message));
+        */
+        return acousticService.sendMessage(to, message);
     }
 
     private void onReceiveMessage(byte from, byte[] message) {

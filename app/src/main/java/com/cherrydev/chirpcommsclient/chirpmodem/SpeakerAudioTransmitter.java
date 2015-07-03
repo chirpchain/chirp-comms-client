@@ -4,6 +4,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 
+import com.cherrydev.chirpcommsclient.util.AudioConvert;
+
 import ca.vectorharmony.chirpmodem.AudioTransmitter;
 
 /**
@@ -42,27 +44,15 @@ public class SpeakerAudioTransmitter extends AudioTransmitter {
         });
     }
 
-    public boolean isActive() {
-        return false;
-    }
-
+    @Override
     public int getAvailableBuffer() {
         return bufferSamples - bufferFillSamples;
     }
 
+    @Override
     public void writeAudioBuffer(float[] buf) {
-        audioTrack.write(convertToPcm(buf), 0, buf.length);
+        audioTrack.write(AudioConvert.convertToPcm(buf), 0, buf.length);
         bufferFillSamples += buf.length / 2;
-    }
-
-    private short[] convertToPcm(float[] samples) {
-        short[] pcm = new short[samples.length * 2];
-        for( int i = 0; i < samples.length; i++) {
-            float f = samples[i];
-            short s = (short)Math.max(-32768, Math.min(32767, (int)(f * 32768f)));
-            pcm[ (i * 2) + (rightChannel ? 1 : 0)] = s;
-        }
-        return pcm;
     }
 
 }
