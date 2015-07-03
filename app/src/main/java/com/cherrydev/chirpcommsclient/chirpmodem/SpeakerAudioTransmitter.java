@@ -59,7 +59,7 @@ public class SpeakerAudioTransmitter extends AudioTransmitter {
         short[] pcm = new short[samples.length * 2];
         for( int i = 0; i < samples.length; i++) {
             float f = samples[i];
-            short s = (short)Math.max(-32768, Math.min(32767, (int)(f * (1f/32768f))));
+            short s = (short)Math.max(-32768, Math.min(32767, (int)(f * 32768f)));
             pcm[ (i * 2) + (rightChannel ? 1 : 0)] = s;
         }
         return pcm;
