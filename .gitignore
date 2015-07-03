@@ -5,3 +5,5 @@
 .DS_Store
 /build
 /captures
+usbdriver/src/main/obj
+usbdriver/src/main/libs
