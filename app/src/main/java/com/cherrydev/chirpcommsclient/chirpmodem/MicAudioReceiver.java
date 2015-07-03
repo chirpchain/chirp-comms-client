@@ -1,11 +1,11 @@
-package com.cherrydev.chirpcommsclient.acoustic.android;
+package com.cherrydev.chirpcommsclient.chirpmodem;
 
-import com.cherrydev.chirpcommsclient.acoustic.AudioReceiver;
+import ca.vectorharmony.chirpmodem.AudioReceiver;
 
 /**
  * Created by jlunder on 6/29/15.
  */
-public class UsbAudioReceiver extends AudioReceiver{
+public class MicAudioReceiver extends AudioReceiver {
     public int getAndResetDroppedSampleCount() {
         return 0;
     }

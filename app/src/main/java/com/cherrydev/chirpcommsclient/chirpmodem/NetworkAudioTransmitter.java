@@ -1,11 +1,11 @@
-package com.cherrydev.chirpcommsclient.acoustic.android;
+package com.cherrydev.chirpcommsclient.chirpmodem;
 
-import com.cherrydev.chirpcommsclient.acoustic.AudioTransmitter;
+import ca.vectorharmony.chirpmodem.AudioTransmitter;
 
 /**
  * Created by jlunder on 6/29/15.
  */
-public class SpeakerAudioTransmitter extends AudioTransmitter {
+public class NetworkAudioTransmitter extends AudioTransmitter{
     public boolean isActive() {
         return false;
     }
