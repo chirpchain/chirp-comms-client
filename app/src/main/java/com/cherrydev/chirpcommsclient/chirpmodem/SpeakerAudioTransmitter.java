@@ -51,7 +51,7 @@ public class SpeakerAudioTransmitter extends AudioTransmitter {
 
     @Override
     public void writeAudioBuffer(float[] buf) {
-        audioTrack.write(AudioConvert.convertToPcm(buf), 0, buf.length);
+        audioTrack.write(AudioConvert.convertToStereoPcm(buf, rightChannel), 0, buf.length);
         bufferFillSamples += buf.length / 2;
     }
 
