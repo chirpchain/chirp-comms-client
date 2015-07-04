@@ -52,7 +52,7 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
             Log.d(TAG_CLASS, "Sending " + samplesToSend + " samples");
             float[] floatSamples = new float[samplesToSend];
             floatBuf.get(floatSamples);
-            short[] pcm = AudioConvert.convertToPcm(floatSamples);
+            short[] pcm = AudioConvert.convertToPcm(floatSamples, 0, floatSamples.length);
             networkSender.accept(pcm);
         }
     }

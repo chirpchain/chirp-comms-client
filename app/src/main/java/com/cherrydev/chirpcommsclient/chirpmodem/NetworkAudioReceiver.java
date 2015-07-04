@@ -13,6 +13,7 @@ public class NetworkAudioReceiver extends AudioReceiver{
     private int droppedSamples;
 
     public NetworkAudioReceiver(int sampleRate) {
+        this.sampleRate = (float) sampleRate;
         buf = ByteBuffer.allocateDirect(sampleRate * 2); // 1S
     }
 
@@ -31,7 +32,7 @@ public class NetworkAudioReceiver extends AudioReceiver{
         ShortBuffer sb = buf.asShortBuffer();
         short[] pcmSamples = new short[sb.limit()];
         sb.get(pcmSamples);
-        return AudioConvert.convertToFloat(pcmSamples);
+        return AudioConvert.convertToFloat(pcmSamples, 0, pcmSamples.length);
     }
 
     public synchronized void receiveAudioData(byte[] sampleData, int sampleRate) {
