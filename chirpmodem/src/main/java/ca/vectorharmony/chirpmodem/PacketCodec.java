@@ -1,7 +1,7 @@
 package ca.vectorharmony.chirpmodem;
 
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.Vector;
 
 import ca.vectorharmony.chirpmodem.util.CodeLibrary;
 
@@ -12,14 +12,14 @@ public class PacketCodec {
     public static final int MAX_PACKET_SYMBOLS = 400;
     public static final int FRAME_PREAMBLE_SYMBOLS = 8;
     public static final int INTERPACKET_GAP_SYMBOLS = 2;
-    public static final int FRAME_HEADER_BYTES = 1;
-    public static final int FRAME_FOOTER_BYTES = 4;
     public static final int ECC_DATA_BLOCK_BYTES = 2;
     public static final int ECC_CODE_BLOCK_SYMBOLS = 16;
+    public static final int FRAME_HEADER_BYTES = 2;
+    public static final int FRAME_FOOTER_BYTES = 4;
+    public static final int MAX_PACKET_BYTES =
+            (MAX_PACKET_SYMBOLS / ECC_CODE_BLOCK_SYMBOLS) * ECC_DATA_BLOCK_BYTES;
     public static final int MAX_PAYLOAD_BYTES =
-            ((MAX_PACKET_SYMBOLS - FRAME_PREAMBLE_SYMBOLS - INTERPACKET_GAP_SYMBOLS) /
-                    ECC_CODE_BLOCK_SYMBOLS) * ECC_DATA_BLOCK_BYTES - FRAME_HEADER_BYTES -
-                    FRAME_FOOTER_BYTES;
+            MAX_PACKET_BYTES - FRAME_HEADER_BYTES - FRAME_FOOTER_BYTES;
 
     public static final int PREAMBLE_SYMBOL = 0;
     public static final int INTERPACKET_GAP_SYMBOL = -1;
@@ -35,6 +35,7 @@ public class PacketCodec {
 
     private static final int CONSECUTIVE_PREAMBLE_RESET = 3;
     private static final int CONSECUTIVE_BREAK_RESET = 2;
+    private static final int CONSECUTIVE_FALSE_START_RESET = FRAME_PREAMBLE_SYMBOLS;
 
     private static final int GAP_EPSILON_ROWS = 3;
 
@@ -56,12 +57,14 @@ public class PacketCodec {
     private int decoderState = DECODER_IDLE;
     private int consecutivePreambleCount = 0;
     private int consecutiveBreakCount = 0;
+    private int falseStartCount = 0;
 
     private int receivedEccSymbolCount = 0;
     private int[] receivedEccSymbols = new int[MAX_PACKET_SYMBOLS];
     private int[] receivedEccSymbolTimes = new int[MAX_PACKET_SYMBOLS];
 
     private int expectedPacketSize = -1;
+    private int expectedPayloadSize = 0;
     private int receivedPacketCurrentSize = 0;
     private byte[] receivedPacket = new byte[MAX_PAYLOAD_BYTES];
 
@@ -250,8 +253,6 @@ public class PacketCodec {
             }
             else {
                 receiveSymbolIntoPacket(sym, demodulator.getLastReceivedSymbolTime());
-                // TODO try to build a packet here
-                // TODO sync start-of-frame based on frame header magic
             }
         }
     }
@@ -259,7 +260,9 @@ public class PacketCodec {
     private void cancelPacketReceive() {
         receivedEccSymbolCount = 0;
         expectedPacketSize = -1;
+        expectedPayloadSize = 0;
         receivedPacketCurrentSize = 0;
+        falseStartCount = 0;
     }
 
     private void receiveSymbolIntoPacket(int symbol, int time) {
@@ -267,7 +270,68 @@ public class PacketCodec {
         receivedEccSymbolTimes[receivedEccSymbolCount] = time;
         ++receivedEccSymbolCount;
 
-        // TODO
+        if(receivedEccSymbolCount == ECC_CODE_BLOCK_SYMBOLS) {
+            int decodedSymbols = decodeOneBlock(receivedEccSymbols, receivedEccSymbolTimes, 0,
+                    receivedPacket, receivedPacketCurrentSize);
+
+            if(decoderState == DECODER_PREAMBLE && decodedSymbols >= 0) {
+                int foundPayloadSize = (int)receivedPacket[1] & 0xFF;
+                if(receivedPacket[0] == FRAME_SIGNATURE && foundPayloadSize <= MAX_PAYLOAD_BYTES) {
+                    expectedPayloadSize = foundPayloadSize;
+                    expectedPacketSize = ((foundPayloadSize + ECC_DATA_BLOCK_BYTES - 1) /
+                            ECC_DATA_BLOCK_BYTES) * ECC_DATA_BLOCK_BYTES + FRAME_HEADER_BYTES +
+                            FRAME_FOOTER_BYTES;
+                    decoderState = DECODER_PAYLOAD;
+                    receivedPacketCurrentSize += ECC_DATA_BLOCK_BYTES;
+                }
+                else {
+                    // false start... what if we skip past that first symbol?
+                    ++falseStartCount;
+                    if(falseStartCount < CONSECUTIVE_FALSE_START_RESET) {
+                        --receivedEccSymbolCount;
+                        System.arraycopy(receivedEccSymbols, 1, receivedEccSymbols, 0,
+                                receivedEccSymbolCount);
+                        System.arraycopy(receivedEccSymbolTimes, 1, receivedEccSymbolTimes, 0,
+                                receivedEccSymbolCount);
+                    }
+                    else {
+                        cancelPacketReceive();
+                    }
+                }
+            }
+            else if(decoderState == DECODER_PAYLOAD) {
+                if(decodedSymbols >= 0) {
+                    receivedPacketCurrentSize += ECC_DATA_BLOCK_BYTES;
+                    if (tryValidateReceivedPacket()) {
+                        cancelPacketReceive();
+                    }
+                }
+                else {
+                    cancelPacketReceive();
+                }
+            }
+        }
+    }
+
+    private boolean tryValidateReceivedPacket() {
+        if(receivedPacketCurrentSize < expectedPacketSize) {
+            return false;
+        }
+        if(receivedPacketCurrentSize > expectedPacketSize) {
+            return true;
+        }
+        // Bullshit CRC.
+        // TODO actually compute a CRC here
+        if(receivedPacket[expectedPacketSize - FRAME_FOOTER_BYTES + 0] != 11 ||
+                receivedPacket[expectedPacketSize - FRAME_FOOTER_BYTES + 1] != 22 ||
+                receivedPacket[expectedPacketSize - FRAME_FOOTER_BYTES + 2] != 33 ||
+                receivedPacket[expectedPacketSize - FRAME_FOOTER_BYTES + 3] != 44) {
+            return true;
+        }
+        validatedReceivedPacket = new byte[expectedPayloadSize];
+        System.arraycopy(receivedPacket, FRAME_HEADER_BYTES, validatedReceivedPacket, 0,
+                expectedPayloadSize);
+        return true;
     }
 
     private void updateSendQueue() {
@@ -305,11 +369,11 @@ public class PacketCodec {
 
         framedPacket[0] = FRAME_SIGNATURE;
         framedPacket[1] = (byte)((payload.length >>> 0) & 0xFF);
-        System.arraycopy(payload, 0, framedPacket, 4, payload.length);
-        framedPacket[framedPacket.length - 4 + 0] = 0; // TODO CRC
-        framedPacket[framedPacket.length - 4 + 1] = 1;
-        framedPacket[framedPacket.length - 4 + 2] = 2;
-        framedPacket[framedPacket.length - 4 + 3] = 3;
+        System.arraycopy(payload, 0, framedPacket, FRAME_HEADER_BYTES, payload.length);
+        framedPacket[framedPacket.length - FRAME_FOOTER_BYTES + 0] = 11; // TODO CRC
+        framedPacket[framedPacket.length - FRAME_FOOTER_BYTES + 1] = 22;
+        framedPacket[framedPacket.length - FRAME_FOOTER_BYTES + 2] = 33;
+        framedPacket[framedPacket.length - FRAME_FOOTER_BYTES + 3] = 44;
 
         for(int j = 0; j < FRAME_PREAMBLE_SYMBOLS - 1; ++j) {
             symbols[i++] = PREAMBLE_SYMBOL;
@@ -339,56 +403,105 @@ public class PacketCodec {
         }
     }
 
-    public int decodeOneBlock(int[] input, int[] inputTimes, int inputOffset, byte[] output,
+    private static class SymbolArrangement {
+        private int[] symbols;
+        private int symbolsConsumed;
+
+        public int[] getSymbols() {
+            return symbols;
+        }
+
+        public int getSymbolsConsumed() {
+            return symbolsConsumed;
+        }
+
+        public SymbolArrangement(int[] symbols, int symbolsConsumed) {
+            this.symbols = symbols;
+            this.symbolsConsumed = symbolsConsumed;
+        }
+    }
+
+    private int decodeOneBlock(int[] input, int[] inputTimes, int inputOffset, byte[] output,
                               int outputOffset) {
         int t = inputTimes[inputOffset];
-        int[][] symbolArrangements = enumerateSymbolArrangements(input, inputTimes, inputOffset);
+        SymbolArrangement[] symbolArrangements = enumerateSymbolArrangements(input, inputTimes, inputOffset);
 
         if(symbolArrangements == null || symbolArrangements.length == 0) {
             // Couldn't find any plausible arrangements of the symbols given
             return -1;
         }
 
-        // TODO test the arrangements for validity
+        SymbolArrangement blockFound = null;
+        byte[] trialBlock = new byte[ECC_DATA_BLOCK_BYTES];
+        for(SymbolArrangement a : symbolArrangements) {
+            if(tryDecodeOneBlock(a.getSymbols(), trialBlock)) {
+                blockFound = a;
+                break;
+            }
+        }
+
+        if(blockFound != null) {
+            System.arraycopy(trialBlock, 0, output, outputOffset, ECC_DATA_BLOCK_BYTES);
+            return blockFound.getSymbolsConsumed();
+        }
 
         // TODO guess missing data if possible in the case of lost symbols
         // This is sometimes possible because we can use agreement between our 4 hamming codes to
         // vote on a solution
 
-        return 0;
+        return -1;
     }
 
-    public int[][] enumerateSymbolArrangements(int[] input, int[] inputTimes, int inputOffset) {
-        Vector<int[]> arrangements = new Vector<int[]>();
+    public SymbolArrangement[] enumerateSymbolArrangements(int[] input, int[] inputTimes, int inputOffset) {
+        ArrayList<SymbolArrangement> arrangements = new ArrayList<SymbolArrangement>();
         int[] currentArrangement = new int[ECC_CODE_BLOCK_SYMBOLS];
         enumerateSymbolArrangements(arrangements, currentArrangement, 0, 0, input, inputTimes,
                 inputOffset);
-        return (int[][])arrangements.toArray();
+        return (SymbolArrangement[])arrangements.toArray();
     }
 
-    public void enumerateSymbolArrangements(Vector<int[]> arrangements, int[] currentArrangement,
+    public void enumerateSymbolArrangements(ArrayList<SymbolArrangement> arrangements, int[] currentArrangement,
                                             int currentArrangementFilled, int missingSymbols,
                                             int[] input, int[] inputTimes, int inputOffset) {
         if(currentArrangementFilled >= ECC_CODE_BLOCK_SYMBOLS) {
             int[] arrangement = new int[ECC_CODE_BLOCK_SYMBOLS];
             System.arraycopy(currentArrangement, 0, arrangement, 0, arrangement.length);
-            arrangements.add(arrangement);
+            arrangements.add(new SymbolArrangement(arrangement, inputOffset));
             return;
         }
 
-        int t = inputTimes[inputOffset];
+        int thisSym;
+        int lastSymEnd, thisSymStart;
         if(inputOffset > 0) {
-            t = inputTimes[inputOffset - 1] +
+            lastSymEnd = inputTimes[inputOffset - 1] +
                     getLibrary().getFingerprintForSymbol(input[inputOffset - 1]).getMatchRows();
+            if(inputOffset < input.length) {
+                thisSym = input[inputOffset];
+                thisSymStart = inputTimes[inputOffset];
+                ++inputOffset;
+            }
+            else {
+                thisSym = -1;
+                thisSymStart = lastSymEnd + getLibrary().getMinCodeRows() * ECC_CODE_BLOCK_SYMBOLS;
+            }
+        }
+        else {
+            if(inputOffset < input.length) {
+                thisSym = input[inputOffset];
+                thisSymStart = inputTimes[inputOffset];
+                lastSymEnd = thisSymStart;
+                ++inputOffset;
+            }
+            else {
+                return;
+            }
         }
 
         int missingSymbolsTolerated = 4 - missingSymbols;
-        int gap = inputTimes[inputOffset] - t;
-        int minGapSymbols =
-                Math.max(0, gap / (getLibrary().getMaxCodeRows() + GAP_EPSILON_ROWS));
-        int maxGapSymbols = Math.min(missingSymbolsTolerated, gap / getLibrary().getMinCodeRows());
-        minGapSymbols = Math.min(minGapSymbols, ECC_CODE_BLOCK_SYMBOLS - currentArrangementFilled);
-        maxGapSymbols = Math.max(minGapSymbols, ECC_CODE_BLOCK_SYMBOLS - currentArrangementFilled);
+        int gap = thisSymStart - lastSymEnd;
+        int minGapSymbols = Math.max(0, gap / (getLibrary().getMaxCodeRows() + GAP_EPSILON_ROWS));
+        int maxGapSymbols = Math.min(Math.min(gap / getLibrary().getMinCodeRows(),
+                missingSymbolsTolerated), ECC_CODE_BLOCK_SYMBOLS - currentArrangementFilled);
         if(minGapSymbols > maxGapSymbols) {
             return;
         }
@@ -398,10 +511,17 @@ public class PacketCodec {
                 currentArrangement[currentArrangementFilled + j] = -1;
             }
             if(currentArrangementFilled + i < ECC_CODE_BLOCK_SYMBOLS) {
-                currentArrangement[currentArrangementFilled + i] = input[inputOffset];
-                enumerateSymbolArrangements(arrangements, currentArrangement,
-                        currentArrangementFilled + i + 1, missingSymbols + i, input, inputTimes,
-                        inputOffset + 1);
+                int sym = thisSym;
+                if(sym != -1 && (sym / 4) % 4 != (currentArrangementFilled + i) % 4) {
+                    sym = -1;
+                }
+                int newMissingSymbols = missingSymbols + i + (sym == -1 ? 1 : 0);
+                if(newMissingSymbols <= missingSymbolsTolerated) {
+                    currentArrangement[currentArrangementFilled + i] = sym;
+                    enumerateSymbolArrangements(arrangements, currentArrangement,
+                            currentArrangementFilled + i + 1, newMissingSymbols,
+                            input, inputTimes, inputOffset);
+                }
             }
             else {
                 enumerateSymbolArrangements(arrangements, currentArrangement,
@@ -411,20 +531,7 @@ public class PacketCodec {
         }
     }
 
-    /*
-    private void foo() {
-        int[] shifts = new int[ECC_CODE_BLOCK_SYMBOLS];
-        for(int i = 0; i < ECC_CODE_BLOCK_SYMBOLS; ++i) {
-            if(input[i] < 0) {
-                shifts[i] = -1;
-            }
-            shifts[i] = (4 + i % 4 - (input[i] / 4)) % 4;
-        }
-
-    }
-    */
-
-    private int tryDecodeOneBlock(int[] arrangedInput, byte[] output) {
+    private boolean tryDecodeOneBlock(int[] arrangedInput, byte[] output) {
         int hamming0 = 0;
         int hamming1 = 0;
         int hamming2 = 0;
@@ -454,17 +561,17 @@ public class PacketCodec {
 
         if (errPos0 == -1 || errPos1 == -1 || errPos2 == -1 || errPos3 == -1) {
             // Uncorrectable 2-bit error
-            return -1;
+            return false;
         }
 
         if (errPos0 != -2 && errPos1 != -2 && errPos0 != errPos1) {
             // Conflicting notions of which bit is erroneous -- implies >2-symbol error
-            return -1;
+            return false;
         }
 
         if (errPos2 != -2 && errPos3 != -2 && errPos2 != errPos3) {
             // Conflicting notions of which bit is erroneous -- implies >2-symbol error
-            return -1;
+            return false;
         }
 
         hamming0 = hammingCodeCorrectedBits[hamming0];
@@ -474,7 +581,7 @@ public class PacketCodec {
 
         if (hamming0 < 0 || hamming1 < 0 || hamming2 < 0 || hamming3 < 0) {
             // Uncorrectable error
-            return 0;
+            return false;
         }
 
         output[0] = (byte) (0 |
@@ -488,7 +595,7 @@ public class PacketCodec {
                 (((hamming3 >>> 3) & 1) << 4) |
                 (((hamming3 >>> 5) & 7) << 5));
 
-        return 2;
+        return true;
     }
 
 }

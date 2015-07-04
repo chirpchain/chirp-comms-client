@@ -1,7 +1,7 @@
 package ca.vectorharmony.chirpmodem.util;
 
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.Vector;
 
 /**
  * Created by jlunder on 6/10/15.
@@ -132,7 +132,7 @@ public class CodeLibrary {
         }
     }
 
-    private static float[] computeNewEntryCrossMatch(Vector<CodeEntry> entries, CodeEntry e) {
+    private static float[] computeNewEntryCrossMatch(ArrayList<CodeEntry> entries, CodeEntry e) {
         float[] matchQs = new float[entries.size()];
         for(int i = 0; i < entries.size(); ++i) {
             CodeEntry ea = entries.get(i);
@@ -147,7 +147,7 @@ public class CodeLibrary {
         return matchQs;
     }
 
-    private static void computeCrossMatch(Vector<CodeEntry> entries) {
+    private static void computeCrossMatch(ArrayList<CodeEntry> entries) {
         for(CodeEntry e: entries) {
             e.highestQ = 0;
             e.totalQ = 0;
@@ -170,7 +170,7 @@ public class CodeLibrary {
         }
     }
 
-    private static CodeEntry findMaxHighestQEntry(Vector<CodeEntry> entries) {
+    private static CodeEntry findMaxHighestQEntry(ArrayList<CodeEntry> entries) {
         CodeEntry hqe = entries.get(0);
         for(CodeEntry e: entries) {
             if(e.highestQ > hqe.highestQ) {
@@ -181,7 +181,7 @@ public class CodeLibrary {
         return hqe;
     }
 
-    private static CodeEntry findMaxTotalQEntry(Vector<CodeEntry> entries) {
+    private static CodeEntry findMaxTotalQEntry(ArrayList<CodeEntry> entries) {
         CodeEntry hqe = entries.get(0);
         for(CodeEntry e: entries) {
             if(e.totalQ > hqe.totalQ) {
@@ -219,7 +219,7 @@ public class CodeLibrary {
 
     public static CodeLibrary generateAndOptimizeChirpCodes() {
         Random r = new Random(4);
-        Vector<CodeEntry> entries = new Vector<CodeEntry>();
+        ArrayList<CodeEntry> entries = new ArrayList<CodeEntry>();
 
         /*
         for(int i = 0; i < NUM_SYMBOLS; ++i) {

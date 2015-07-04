@@ -1,7 +1,7 @@
 package ca.vectorharmony.chirpmodem.util;
 
 import java.security.InvalidParameterException;
-import java.util.Vector;
+import java.util.ArrayList;
 
 /**
  * Created by jlunder on 6/29/15.
@@ -12,7 +12,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
     private float[] bins = new float[BINS_PER_ROW * TOTAL_ROWS];
     private int firstBinRow = 0;
     private int lastBinRow = 0;
-    private Vector<float[]> sampleBuffer = new Vector<float[]>();
+    private ArrayList<float[]> sampleBuffer = new ArrayList<float[]>();
     private int consumedSamples = 0;
     private int pendingSamples = 0;
 
