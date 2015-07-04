@@ -12,4 +12,5 @@ public abstract class AudioReceiver {
 
     public abstract int getAndResetDroppedSampleCount();
     public abstract float[] readAudioBuffer();
+    public abstract void stop();
 }

@@ -7,7 +7,7 @@ import java.nio.ShortBuffer;
 
 import ca.vectorharmony.chirpmodem.AudioReceiver;
 
-public class NetworkAudioReceiver extends AudioReceiver{
+public class NetworkAudioReceiver extends AudioReceiver {
 
     private ByteBuffer buf;
     private int droppedSamples;
@@ -17,14 +17,20 @@ public class NetworkAudioReceiver extends AudioReceiver{
         buf = ByteBuffer.allocateDirect(sampleRate * 2); // 1S
     }
 
+    @Override
     public synchronized int getAndResetDroppedSampleCount() {
         int dropped = droppedSamples;
         droppedSamples = 0;
         return dropped;
     }
 
+    @Override
     public float[] readAudioBuffer() {
         return getFloatsFromBuffer();
+    }
+
+    @Override
+    public void stop() {
     }
 
     private synchronized float[] getFloatsFromBuffer() {

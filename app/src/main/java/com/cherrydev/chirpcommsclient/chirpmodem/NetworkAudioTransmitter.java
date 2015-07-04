@@ -41,6 +41,7 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
         }, 0, 1000 / SENDS_PER_SECOND);
     }
 
+    @Override
     public void stop() {
         timer.cancel();
     }

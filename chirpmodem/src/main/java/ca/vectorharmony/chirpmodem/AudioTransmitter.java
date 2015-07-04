@@ -9,4 +9,5 @@ public abstract class AudioTransmitter {
     // 0.5s-1s is probably the right ballpark.
     public abstract int getAvailableBuffer();
     public abstract void writeAudioBuffer(float[] buf);
+    public abstract void stop();
 }

@@ -55,4 +55,10 @@ public class SpeakerAudioTransmitter extends AudioTransmitter {
         bufferFillSamples += buf.length / 2;
     }
 
+    @Override
+    public void stop() {
+        audioTrack.stop();
+        audioTrack.release();
+    }
+
 }

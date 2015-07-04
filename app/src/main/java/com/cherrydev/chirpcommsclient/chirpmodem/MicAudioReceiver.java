@@ -20,6 +20,7 @@ public class MicAudioReceiver extends AudioReceiver {
         sampleRate = 22050;
     }
 
+    @Override
     public int getAndResetDroppedSampleCount() {
         // We can't keep track of when AudioRecord drops samples and it's not worth it to
         // complicate the implementation just for that.
@@ -36,6 +37,7 @@ public class MicAudioReceiver extends AudioReceiver {
         record.startRecording();
     }
 
+    @Override
     public float[] readAudioBuffer() {
         short[] buf = new short[nativeSamplesPerRead];
         int numRead = record.read(buf, 0, buf.length);
@@ -44,5 +46,11 @@ public class MicAudioReceiver extends AudioReceiver {
             buf[i / 2] = buf[i];
         }
         return AudioConvert.convertToFloat(buf, 0, numRead / 2);
+    }
+
+    @Override
+    public void stop() {
+        record.stop();
+        record.release();
     }
 }
