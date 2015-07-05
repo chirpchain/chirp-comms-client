@@ -525,8 +525,11 @@ public class PacketCodec {
         int thisSym;
         int lastSymEnd, thisSymStart;
         if(inputOffset > 0) {
-            lastSymEnd = inputTimes[inputOffset - 1] +
-                    getLibrary().getFingerprintForSymbol(input[inputOffset - 1]).getMatchRows();
+            int lastSymRows = getLibrary().getMinCodeRows();;
+            if(input[inputOffset - 1] != -1) {
+                lastSymRows = getLibrary().getFingerprintForSymbol(input[inputOffset - 1]).getMatchRows()
+            }
+            lastSymEnd = inputTimes[inputOffset - 1] + lastSymRows;
             if(inputOffset < input.length) {
                 thisSym = input[inputOffset];
                 thisSymStart = inputTimes[inputOffset];
