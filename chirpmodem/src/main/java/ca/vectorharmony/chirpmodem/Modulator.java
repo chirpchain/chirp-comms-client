@@ -28,6 +28,7 @@ public class Modulator {
     }
 
     public void sendSymbols(int[] symbols) {
+        System.err.println("Received " + symbols.length + " symbols");
         if(getSendQueueFree() < symbols.length) {
             throw new IllegalStateException("Trying to send a message but the send queue is full!");
         }
@@ -56,7 +57,7 @@ public class Modulator {
     }
 
     public boolean isSendQueueEmpty() {
-        return sendQueueTail != sendQueueHead;
+        return sendQueueTail == sendQueueHead;
     }
 
     public boolean isActive() {
@@ -73,9 +74,12 @@ public class Modulator {
             transmitter.writeAudioBuffer(nextCode);
             sendQueueTail++;
             sendQueueTail %= sendQueue.length;
+            System.out.println("Queue tail " + sendQueueTail + " head " + sendQueueHead + ". Last symbol was " + nextSym);
         }
+        /*
         while(isSendQueueEmpty() && transmitter.getAvailableBuffer() < idleSilence.length) {
             transmitter.writeAudioBuffer(idleSilence);
         }
+        */
     }
 }

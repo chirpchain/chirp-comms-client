@@ -259,7 +259,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
                 else {
                     Log.e(TAG_SOCKET, "Socket error, but no throwable! Args were:" + (args.length == 1 ? args[0].toString() : Arrays.toString(args)));
                 }
-                if (mSocket.connected()) mSocket.connect();
+                if (! mSocket.connected()) mSocket.connect();
             });
             mSocket.connect();
         }

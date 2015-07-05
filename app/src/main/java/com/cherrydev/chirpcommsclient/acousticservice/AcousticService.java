@@ -22,6 +22,7 @@ import com.cherrydev.chirpcommsclient.util.ServiceBinding;
 
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -37,6 +38,8 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
     private SocketService socketService;
     private ServiceBinding<SocketServiceListener, SocketService> socketServiceBinding;
     private IntObjectHashMap<AcousticSocketPackage> socketPackages = new IntObjectHashMap<>();
+    private volatile boolean pumpWorking = false;
+    private volatile boolean timerWorking = false;
 
     private class AcousticSocketPackage {
         PacketCodec codec;
@@ -138,17 +141,17 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
         Log.d(TAG_SERVICE, "Connecting peer " + peerId);
         NetworkAudioTransmitter t = new NetworkAudioTransmitter();
         t.initOnThisThread(48000, (samples) -> {
-            ByteBuffer bb = ByteBuffer.allocate(samples.length * 2);
+            ByteBuffer bb = ByteBuffer.allocateDirect(samples.length * 2);
             bb.asShortBuffer().put(samples);
-            bb.flip();
-            byte[] bytes = new byte[bb.limit()];
-            bb.get(bytes);
-            ByteMessage m = new ByteMessage(socketService.getNodeId(), peerId, bytes);
-            socketService.sendByteData(m);
+            byte[] bytes = Arrays.copyOf(bb.array(), samples.length * 2);
+            AudioDataMessage m = new AudioDataMessage(socketService.getNodeId(), peerId, bytes, 48000);
+            //Log.d(TAG_SERVICE, "Sending " + bytes.length + " bytes");
+            socketService.sendAudioData(m);
         });
         NetworkAudioReceiver r = new NetworkAudioReceiver(48000);
         PacketCodec codec = new PacketCodec(r, t);
         AcousticSocketPackage p = new AcousticSocketPackage(codec, r, t, peerId);
+        Log.d(TAG_SERVICE, "Adding new AcousticSocketPackage for peer " + peerId);
         socketPackages.put(peerId, p);
     }
 
@@ -157,16 +160,15 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
      */
     private void doPeerDisconnect(final byte peerId) {
         Log.d(TAG_SERVICE, "Disconnecting peer " + peerId);
-        acousticPumpTimer.cancel();
         AcousticSocketPackage p = socketPackages.get(peerId);
         if (p != null) {
+            Log.d(TAG_SERVICE, "Removing new AcousticSocketPackage for peer " + peerId);
             p.transmitter.stop();
             socketPackages.remove(peerId);
         }
     }
 
     private void onReceiveSocketAudio(AudioDataMessage message) {
-        Log.d(TAG_SERVICE, "Got some acoustic data from " + message.getFrom());
         AcousticSocketPackage p = socketPackages.get(message.getFrom());
         if (p != null) {
             acousticPumpHandler.post(() -> p.receiver.receiveAudioData(message.getData(), message.getSampleRate()));
@@ -187,18 +189,28 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
         super.onDestroy();
     }
 
+    private int listenerCount;
+
     private void startAcousticPump() {
         acousticPumpThread = new HandlerThread("AcousticPumpThread");
         acousticPumpThread.start();
         acousticPumpHandler = new Handler(acousticPumpThread.getLooper());
         acousticPumpTimer = new Timer();
         acousticPumpTimer.scheduleAtFixedRate(new TimerTask() {
+
             @Override
             public void run() {
+                timerWorking = true;
                 acousticPumpHandler.post(() -> {
+                    pumpWorking = true;
                     for(IntObjectCursor<AcousticSocketPackage> p : socketPackages) {
                         PacketCodec c = p.value.codec;
                         c.update();
+                        listenerCount = 0;
+                        forEachListener(l -> listenerCount++);
+                        if (listenerCount == 0) {
+                            Log.w(TAG_SERVICE, "Hey, I have no listeners!!");
+                        }
                         if (c.hasNextValidReceivedPacket()) {
                             byte[] packet = c.nextValidReceivedPacket();
                             forEachListener(l -> l.receiveAcousticMessage(p.value.peerId, socketService.getNodeId(), packet));
@@ -207,5 +219,19 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
                 });
             }
         }, 0, 100);
+        Timer pumpMonitor = new Timer();
+        pumpMonitor.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (! pumpWorking) {
+                    Log.w(TAG_SERVICE, "Pump isn't going!");
+                    if (! timerWorking) {
+                        Log.w(TAG_SERVICE, "Also, timer isn't going!!");
+                    }
+                }
+                pumpWorking = false;
+                timerWorking = false;
+            }
+        }, 1000, 1000);
     }
 }

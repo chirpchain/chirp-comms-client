@@ -1,5 +1,6 @@
 package com.cherrydev.chirpcommsclient;
 
+import android.app.ActivityManager;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -92,6 +93,7 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        Log.w(TAG_ACTIVITY, "Memory is " + ( (ActivityManager)getSystemService(ACTIVITY_SERVICE)).getLargeMemoryClass());
         socketServiceBinding = new ServiceBinding<SocketServiceListener, SocketService>(this, SocketService.class) {
             @Override
             protected SocketServiceListener createListener() {

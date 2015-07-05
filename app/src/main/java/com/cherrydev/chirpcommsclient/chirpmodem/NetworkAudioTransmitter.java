@@ -20,9 +20,9 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
 
     private static final String TAG_CLASS = "NetworkAudioTransmitter";
 
-    private static final int SENDS_PER_SECOND = 4;
+    private static final int SENDS_PER_SECOND = 3;
 
-    private FloatBuffer floatBuf;
+    private FloatBuffer floatBuf; // Assume in write mode
     private Handler handler;
     private Consumer<short[]> networkSender;
     private Timer timer;
@@ -31,6 +31,7 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
         this.networkSender = networkSender;
         ByteBuffer buf = ByteBuffer.allocateDirect(sampleRate * 4);
         floatBuf = buf.asFloatBuffer();
+        floatBuf.clear();
         handler = new Handler();
         timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -47,27 +48,31 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
     }
 
     private void sendSamples() {
-        int samplesToSend = 1000 / SENDS_PER_SECOND;
-        if (getAvailableBuffer() > 0) {
-            samplesToSend = Math.min(samplesToSend, getAvailableBuffer());
-            Log.d(TAG_CLASS, "Sending " + samplesToSend + " samples");
+        int samplesToSend = floatBuf.capacity() / (SENDS_PER_SECOND - 1);
+        int availableToRead = getAvailableBytes(); // A bit faster than it should be filling
+        if (availableToRead > 0) {
+            samplesToSend = Math.min(samplesToSend, availableToRead);
             float[] floatSamples = new float[samplesToSend];
+            floatBuf.flip();
             floatBuf.get(floatSamples);
+            floatBuf.compact();
+            //Log.d(TAG_CLASS, "Had " + availableToRead + " available, sent " + samplesToSend + " position is " + floatBuf.position());
             short[] pcm = AudioConvert.convertToPcm(floatSamples, 0, floatSamples.length);
             networkSender.accept(pcm);
         }
     }
 
+    private int getAvailableBytes() {
+        return floatBuf.position();
+    }
+
     @Override
     public synchronized int getAvailableBuffer() {
-        floatBuf.flip();
         return floatBuf.remaining();
     }
 
     @Override
     public synchronized void writeAudioBuffer(float[] buf) {
-        Log.d(TAG_CLASS, "Received " + buf.length + " audio from codec");
-        floatBuf.compact();
         floatBuf.put(buf);
     }
 

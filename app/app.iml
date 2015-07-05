@@ -101,8 +101,8 @@
     <orderEntry type="library" exported="" name="support-annotations-21.0.3" level="project" />
     <orderEntry type="library" exported="" name="jdeferred-core-1.2.4" level="project" />
     <orderEntry type="library" exported="" name="slf4j-api-1.7.2" level="project" />
-    <orderEntry type="library" exported="" name="okhttp-ws-2.4.0" level="project" />
     <orderEntry type="library" exported="" name="streamsupport-1.2.2" level="project" />
+    <orderEntry type="library" exported="" name="okhttp-ws-2.4.0" level="project" />
     <orderEntry type="library" exported="" name="okio-1.4.0" level="project" />
     <orderEntry type="module" module-name="chirpmodem" exported="" />
   </component>

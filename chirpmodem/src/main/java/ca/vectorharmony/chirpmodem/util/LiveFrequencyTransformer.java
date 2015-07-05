@@ -7,6 +7,8 @@ import java.util.ArrayList;
  * Created by jlunder on 6/29/15.
  */
 public class LiveFrequencyTransformer extends FrequencyTransformer {
+    private static final int MAX_PENDING_SAMPLES = (int) SAMPLE_RATE * 6;
+
     private static float[][][] motherWavelets;
 
     private float[] bins = new float[BINS_PER_ROW * TOTAL_ROWS];
@@ -88,8 +90,13 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
 
     public void addSamples(float[] samples) {
         if(samples.length > 0) {
-            sampleBuffer.add(samples);
-            pendingSamples += samples.length;
+            if (pendingSamples + samples.length < MAX_PENDING_SAMPLES) {
+                sampleBuffer.add(samples);
+                pendingSamples += samples.length;
+            }
+            else {
+                System.err.println("Too many samples!!! Maybe they're not being consumed??");
+            }
             tryConsumeSamples();
         }
     }
@@ -110,6 +117,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
     }
 
     public void consumeRows(int numRows) {
+        if (numRows == 0) return;
         if(numRows > getAvailableRows()) {
             throw new InvalidParameterException("numRows exceeds getAvailableRows()");
         }
@@ -211,6 +219,7 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
             consumedSamples -= firstSeries.length;
             pendingSamples -= firstSeries.length;
             sampleBuffer.remove(0);
+            System.err.println("Removed some samples");
         }
     }
 

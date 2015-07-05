@@ -60,8 +60,8 @@ public class PacketCodec {
     private int falseStartCount = 0;
 
     private int receivedEccSymbolCount = 0;
-    private int[] receivedEccSymbols = new int[MAX_PACKET_SYMBOLS];
-    private int[] receivedEccSymbolTimes = new int[MAX_PACKET_SYMBOLS];
+    private int[] receivedEccSymbols = new int[ECC_CODE_BLOCK_SYMBOLS];
+    private int[] receivedEccSymbolTimes = new int[ECC_CODE_BLOCK_SYMBOLS];
 
     private int expectedPacketSize = -1;
     private int expectedPayloadSize = 0;
@@ -96,6 +96,31 @@ public class PacketCodec {
                 if (hammingCodeCorrectedBits == null) {
                     hammingCodeCorrectedBits = newHammingCodeCorrectedBits;
                 }
+
+                for(int i = 0; i < 16; ++i) {
+                    int code = hammingCodes[i];
+                    if(hammingCodeErrorPosition[code] != -2) {
+                        System.err.println("Hamming code mismatch for " + i);
+                    }
+                    for(int j = 0; j < 8; ++j) {
+                        int mutatedCode = code ^ (1 << j);
+                        if(hammingCodeErrorPosition[mutatedCode] != j) {
+                            System.err.println("Hamming code failed to detect error at " + j);
+                        }
+                        if(hammingCodeCorrectedBits[mutatedCode] != i) {
+                            System.err.println("Hamming code failed to correct error at " + j);
+                        }
+                        for(int k = j + 1; k < 8; ++k) {
+                            int doubleMutatedCode = mutatedCode ^ (1 << k);
+                            if(hammingCodeErrorPosition[doubleMutatedCode] != -1) {
+                                System.err.println("Hamming code (error pos) failed to detect double error at " + j + " and " + k);
+                            }
+                            if(hammingCodeCorrectedBits[doubleMutatedCode] != -1) {
+                                System.err.println("Hamming code (corrected bits) failed to detect double error at " + j + " and " + k);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -113,16 +138,16 @@ public class PacketCodec {
     }
 
     private static int makeHammingCodeErrorPosition(int h) {
-        int d = (h >>> 4) & 15;
+        int d = (((h >>> 3) & 1) << 0) | (((h >>> 5) & 7) << 1);
         int p0 = (h >>> 0) & 1;
         int p1 = (h >>> 1) & 1;
         int p2 = (h >>> 2) & 1;
-        int p3 = (h >>> 3) & 1;
+        int p3 = (h >>> 4) & 1;
         int xp0 = parity(d) ^ p1 ^ p2 ^ p3;
         int xp1 = parity(d, 0, 1, 3);
         int xp2 = parity(d, 0, 2, 3);
         int xp3 = parity(d, 1, 2, 3);
-        int errorPosition = (p1 == xp1 ? 1 : 0) + (p2 == xp2 ? 2 : 0) + (p3 == xp3 ? 4 : 0);
+        int errorPosition = (p1 == xp1 ? 0 : 1) + (p2 == xp2 ? 0 : 2) + (p3 == xp3 ? 0 : 4);
         if(errorPosition == 0) {
             if(p0 == xp0) {
                 // No error
@@ -157,11 +182,11 @@ public class PacketCodec {
     }
 
     private static int parity(int i) {
-        return ((i >>> 0) & 1) ^ ((i >>> 1) & 1) ^ ((i >>> 2) & 1) ^ ((i >>> 3) & 1);
+        return 1 ^ ((i >>> 0) & 1) ^ ((i >>> 1) & 1) ^ ((i >>> 2) & 1) ^ ((i >>> 3) & 1);
     }
 
     private static int parity(int i, int pos0, int pos1, int pos2) {
-        return ((i >>> pos0) & 1) ^ ((i >>> pos1) & 1) ^ ((i >>> pos2) & 1);
+        return 1 ^ ((i >>> pos0) & 1) ^ ((i >>> pos1) & 1) ^ ((i >>> pos2) & 1);
     }
 
     public int getAndResetStraySymbolCount() {
@@ -270,6 +295,8 @@ public class PacketCodec {
         receivedEccSymbolTimes[receivedEccSymbolCount] = time;
         ++receivedEccSymbolCount;
 
+        System.err.println("Received symbol: " + symbol);
+
         if(receivedEccSymbolCount == ECC_CODE_BLOCK_SYMBOLS) {
             int decodedSymbols = decodeOneBlock(receivedEccSymbols, receivedEccSymbolTimes, 0,
                     receivedPacket, receivedPacketCurrentSize);
@@ -283,6 +310,7 @@ public class PacketCodec {
                             FRAME_FOOTER_BYTES;
                     decoderState = DECODER_PAYLOAD;
                     receivedPacketCurrentSize += ECC_DATA_BLOCK_BYTES;
+                    receivedEccSymbolCount = 0;
                 }
                 else {
                     // false start... what if we skip past that first symbol?
@@ -302,6 +330,7 @@ public class PacketCodec {
             else if(decoderState == DECODER_PAYLOAD) {
                 if(decodedSymbols >= 0) {
                     receivedPacketCurrentSize += ECC_DATA_BLOCK_BYTES;
+                    receivedEccSymbolCount = 0;
                     if (tryValidateReceivedPacket()) {
                         cancelPacketReceive();
                     }
@@ -309,6 +338,9 @@ public class PacketCodec {
                 else {
                     cancelPacketReceive();
                 }
+            }
+            else {
+                cancelPacketReceive();
             }
         }
     }
@@ -335,7 +367,7 @@ public class PacketCodec {
     }
 
     private void updateSendQueue() {
-        if(isReadyToSend()) {
+        if(isReadyToSend() && queuedPacket != null) {
             // Air is clear and we're not delaying or transmitting
             if(preSendDelayRemaining > 0) {
                 // The air must have just cleared, begin our delay
@@ -386,6 +418,17 @@ public class PacketCodec {
             symbols[i++] = INTERPACKET_GAP_SYMBOL;
         }
 
+        System.err.print("Sending packet:");
+        for(int j = 0; j < framedPacket.length; ++j) {
+            System.err.print(" " + ((int)framedPacket[j] & 0xFF));
+        }
+        System.err.println();
+        System.err.print("Symbols:");
+        for(int j = 0; j < symbols.length; ++j) {
+            System.err.print(" " + symbols[j]);
+        }
+        System.err.println();
+
         return symbols;
     }
 
@@ -423,7 +466,6 @@ public class PacketCodec {
 
     private int decodeOneBlock(int[] input, int[] inputTimes, int inputOffset, byte[] output,
                               int outputOffset) {
-        int t = inputTimes[inputOffset];
         SymbolArrangement[] symbolArrangements = enumerateSymbolArrangements(input, inputTimes, inputOffset);
 
         if(symbolArrangements == null || symbolArrangements.length == 0) {
@@ -435,6 +477,16 @@ public class PacketCodec {
         byte[] trialBlock = new byte[ECC_DATA_BLOCK_BYTES];
         for(SymbolArrangement a : symbolArrangements) {
             if(tryDecodeOneBlock(a.getSymbols(), trialBlock)) {
+                System.err.print("Decoded block:");
+                for(int j = 0; j < trialBlock.length; ++j) {
+                    System.err.print(" " + ((int)trialBlock[j] & 0xFF));
+                }
+                System.err.println();
+                System.err.print("From symbols:");
+                for(int j = 0; j < a.getSymbols().length; ++j) {
+                    System.err.print(" " + a.getSymbols()[j]);
+                }
+                System.err.println();
                 blockFound = a;
                 break;
             }
@@ -457,7 +509,7 @@ public class PacketCodec {
         int[] currentArrangement = new int[ECC_CODE_BLOCK_SYMBOLS];
         enumerateSymbolArrangements(arrangements, currentArrangement, 0, 0, input, inputTimes,
                 inputOffset);
-        return (SymbolArrangement[])arrangements.toArray();
+        return arrangements.toArray(new SymbolArrangement[arrangements.size()]);
     }
 
     public void enumerateSymbolArrangements(ArrayList<SymbolArrangement> arrangements, int[] currentArrangement,
