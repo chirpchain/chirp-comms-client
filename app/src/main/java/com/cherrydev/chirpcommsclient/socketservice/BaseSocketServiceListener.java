@@ -3,6 +3,7 @@ package com.cherrydev.chirpcommsclient.socketservice;
 import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
+import com.cherrydev.chirpcommsclient.util.ChirpNode;
 
 import java.util.Set;
 
@@ -59,6 +60,16 @@ public class BaseSocketServiceListener implements SocketServiceListener {
 
     @Override
     public void clientError(String errorMessage) {
+
+    }
+
+    @Override
+    public void setNodeInfo(ChirpNode nodeInfo) {
+
+    }
+
+    @Override
+    public void receivePeerNodeInfos(ChirpNode[] nodes) {
 
     }
 }

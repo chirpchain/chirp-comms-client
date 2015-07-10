@@ -14,6 +14,7 @@ import com.cherrydev.chirpcommsclient.socketmessages.AudioDataMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
 import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.util.BaseService;
+import com.cherrydev.chirpcommsclient.util.ChirpNode;
 import com.cherrydev.chirpcommsclient.util.IdGenerator;
 import com.github.nkzawa.socketio.client.Ack;
 import com.github.nkzawa.socketio.client.IO;
@@ -30,6 +31,7 @@ import java.io.FileInputStream;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -50,6 +52,8 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private static final String AUDIO_DATA_EVENT = "audioData";
     private static final String ASSIGN_ME_AN_ID_EVENT = "assignMeAnId";
     private static final String SET_CLIENT_ID_EVENT = "setClientId";
+    private static final String SET_NODE_INFO_EVENT = "setNodeInfo";
+    private static final String RECEIVE_PEER_NODE_INFOS_EVENT = "peerNodeInfos";
     private static final String NEW_PEER_EVENT = "newPeer";
     private static final String BYTE_DATA_EVENT = "byteData";
     private static final String CHIRP_MESSAGE_DATA_EVENT = "chirpData";
@@ -61,6 +65,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private boolean hasStarted;
     private boolean ready;
     private Socket mSocket;
+    private byte configuredNodeId = -1;
     private byte mNodeId = -1;
     private Set<Byte> connectedPeers = new HashSet<>();
     private IntLongMap recievedDataStats = new IntLongHashMap();
@@ -94,7 +99,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
                 String serverUrl = config.optString("serverUrl");
                 if (serverUrl != null) this.serverUrl = serverUrl;
                 byte nodeId = (byte) config.optInt("nodeId", -1);
-                if (nodeId >= 0) this.mNodeId = nodeId;
+                if (nodeId >= 0) this.configuredNodeId = nodeId;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -245,6 +250,30 @@ public class SocketService extends BaseService<SocketServiceListener> {
                     ack.call();
                 }
             });
+            mSocket.on(SET_NODE_INFO_EVENT, args -> {
+                try {
+                    JSONObject nodeInfo = (JSONObject) args[0];
+                    onSetNodeInfo(new ChirpNode(nodeInfo));
+                }
+                catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            mSocket.on(RECEIVE_PEER_NODE_INFOS_EVENT, args -> {
+                try {
+                    JSONObject nodeInfo = (JSONObject) args[0];
+                    ChirpNode nodes[] = new ChirpNode[nodeInfo.length()];
+                    Iterator<String> keys = nodeInfo.keys();
+                    int i = 0;
+                    while (keys.hasNext()) {
+                        nodes[i++] = new ChirpNode(nodeInfo.getJSONObject(keys.next()));
+                    }
+                    onReceivePeerNodeInfos(nodes);
+                }
+                catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            });
             mSocket.on(Socket.EVENT_DISCONNECT, args -> {
                 mSocket.connect();
                 onDisconnect();
@@ -279,8 +308,14 @@ public class SocketService extends BaseService<SocketServiceListener> {
     }
 
     private void onConnect() {
-        Log.i(TAG_SOCKET, "Asking for an ID!");
-        mSocket.emit(ASSIGN_ME_AN_ID_EVENT, 0);
+        if (configuredNodeId >= 0) {
+            Log.i(TAG_SOCKET, "Logging in with configured node id " + configuredNodeId);
+            mSocket.emit(LOGIN_EVENT, configuredNodeId);
+        }
+        else {
+            Log.i(TAG_SOCKET, "Asking for an ID!");
+            mSocket.emit(ASSIGN_ME_AN_ID_EVENT, 0);
+        }
         mSocket.emit(LIST_PEERS_EVENT, 0);
         forEachListener(SocketServiceListener::connected);
         checkReady();
@@ -313,6 +348,14 @@ public class SocketService extends BaseService<SocketServiceListener> {
         else {
             return Integer.parseInt(arg.toString());
         }
+    }
+
+    private void onSetNodeInfo(ChirpNode node) {
+        forEachListener(l -> l.setNodeInfo(node));
+    }
+
+    private void onReceivePeerNodeInfos(ChirpNode[] nodes) {
+        forEachListener(l -> l.receivePeerNodeInfos(nodes));
     }
 
     @Override

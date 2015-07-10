@@ -4,9 +4,11 @@ import android.os.Environment;
 import android.util.Log;
 
 import com.cherrydev.chirpcommsclient.util.AudioConvert;
+import com.cherrydev.usbaudiodriver.AudioPlayback;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 
 import ca.vectorharmony.chirpmodem.AudioReceiver;

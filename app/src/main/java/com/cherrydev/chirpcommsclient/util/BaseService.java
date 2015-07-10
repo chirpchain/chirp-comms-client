@@ -43,12 +43,11 @@ public abstract class BaseService<TListener> extends Service {
     }
 
     public void addListener(TListener listener) {
-        mListeners.add(listener);
-
+        if (listener != null)  mListeners.add(listener);
     }
 
     public void removeListener(TListener listener) {
-        mListeners.remove(listener);
+        if (listener != null) mListeners.remove(listener);
     }
 
     protected void forEachListener(EachListenerAction<TListener> action) {

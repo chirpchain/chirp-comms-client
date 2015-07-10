@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal" android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Node Center Camp (65)"
+        android:id="@+id/chirp_node_name"
+        android:paddingLeft="10dp" />
+
+    <Space
+        android:layout_width="20px"
+        android:layout_height="20px"
+        android:layout_weight="1" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/chirp_node_acoustic_image"
+        android:src="@drawable/ic_volume_dark" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/chirp_node_socket_image"
+        android:src="@drawable/tower"
+        android:layout_gravity="center_vertical"
+        android:visibility="gone" />
+
+    <Space
+        android:layout_width="200dp"
+        android:layout_height="20px"
+        android:layout_weight="0" />
+
+</LinearLayout>

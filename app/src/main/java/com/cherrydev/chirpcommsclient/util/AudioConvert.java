@@ -20,11 +20,34 @@ public class AudioConvert {
         return pcm;
     }
 
+    public static short[] convertToPcm2(float[] sourceBuffer, int offset, int sourceSamples) {
+        short[] destBuffer = new short[sourceSamples];
+        int destOffset = 0;
+        for (int sample = 0; sample < sourceSamples; sample++)
+        {
+            // adjust volume
+            float sample32 = sourceBuffer[sample] * 0.25f;
+            // clip
+            if (sample32 > 1.0f)
+                sample32 = 1.0f;
+            if (sample32 < -1.0f)
+                sample32 = -1.0f;
+            destBuffer[destOffset++] = (short)(sample32 * 32767);
+        }
+        return destBuffer;
+    }
+
+    public static void convertSignedNess(short[] pcmSamples, int offset, int length) {
+        for(int i = 0; i < length; i++) {
+            pcmSamples[i + offset] = (short) (pcmSamples[i + offset] + ((short)32768));
+        }
+    }
+
     public static float[] convertToFloat(short[] pcmSamples, int offset, int length) {
         float[] floats = new float[length];
         for (int i = 0; i < length; i++) {
             short s = pcmSamples[i + offset];
-            float f = s * (1f / 32768f);
+            float f = ((float)s) * (1f / 32768f);
             floats[i] = f;
         }
         return floats;

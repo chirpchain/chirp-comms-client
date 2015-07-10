@@ -1,0 +1,18 @@
+<LinearLayout
+    android:layout_height="match_parent" android:layout_width="match_parent"
+    android:orientation="vertical"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+<FrameLayout
+    android:id="@+id/fragment_blinky_lights_container"
+    android:layout_weight="1"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+</FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/fragment_message_container"
+        android:layout_weight="1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    </FrameLayout>
+</LinearLayout>

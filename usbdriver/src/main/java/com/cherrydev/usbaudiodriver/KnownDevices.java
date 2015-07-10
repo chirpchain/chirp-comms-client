@@ -11,7 +11,7 @@ public class KnownDevices {
             "Generic Adaptor", 0x0d8c, 0x013c, 0x82, 100, 2, 48000, (byte) 10, (char) 0x7FFF
     );
     public static final UsbAudioDeviceDescriptor XLR_ADAPTOR = new UsbAudioDeviceDescriptor(
-            "XLR Mic Adaptor", 0x0d8c, 0x0139, 0x82, 100, 2, 48000, (byte) 10, (char) 0x7FFF
+            "XLR Mic Adaptor", 0x0d8c, 0x0139, 0x82, 100, 2, 44100, (byte) 10, (char) 0x7FFF
     );
 
     public static UsbAudioDeviceDescriptor[] getAll() {

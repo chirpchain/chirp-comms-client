@@ -8,7 +8,7 @@ android {
     buildToolsVersion "21.1.2"
     defaultConfig {
         applicationId "com.cherrydev.chirpcommsclient"
-        minSdkVersion 18
+        minSdkVersion 19
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
@@ -37,5 +37,19 @@ dependencies {
     compile 'com.carrotsearch:hppc:0.7.1'
     compile 'org.jdeferred:jdeferred-android-aar:1.2.4'
     compile 'net.sourceforge.streamsupport:streamsupport:1.2.2'
+    //compile 'com.squareup.dagger:dagger:1.2.2'
+    compile 'com.jakewharton:butterknife:7.0.1'
+    //compile 'com.fizz-buzz:fb-android-dagger:1.0.6'
+    /*compile('com.fizz-buzz:fb-android-dagger:1.0.6') {
+        exclude group: 'android.support', module: 'compatibility-v4'
+        exclude group: 'android.support', module: 'compatibility-v7-appcompat'
+    }*/
+    compile 'com.j256.ormlite:ormlite-android:4.48'
+    compile "org.parceler:parceler-api:0.2.15"
+    compile "org.ocpsoft.prettytime:prettytime:3.2.7.Final"
+    apt "org.parceler:parceler:0.2.15"
+    //apt 'com.squareup.dagger:dagger-compiler:1.2.2'
     compile project(':chirpmodem')
+    compile project(':samplingProfilerFacade')
+    compile project(':usbdriver')
 }

@@ -25,13 +25,29 @@ public class UsbAudioDriver {
     private static boolean runningLoop = false;
 
     static {
-        System.loadLibrary("usbaudio");
-        if (!initDriver(UsbAudioDriver.class, "write")) {
-            throw new RuntimeException("Error initializing driver");
-        }
+
     }
 
-    public static void initWithContext(Context c) {
+    public static boolean initWithContext(Context c) {
+        try {
+            List<String> result = Shell.SU.run("echo 0 > /sys/fs/selinux/enforce");
+            if (result == null) {
+                String msg = "Couldn't disable selinux";
+                Log.e(LOG_TAG, msg);
+                throw new SecurityException(msg);
+            }
+            else {
+                Log.w(LOG_TAG, String.format("Disabled selinux"));
+            }
+            System.loadLibrary("usbaudio");
+            if (!initDriver(UsbAudioDriver.class, "write")) {
+                return false;
+            }
+        }
+        catch (Throwable e) {
+            Log.w(LOG_TAG, "Error while trying to init USB", e);
+            return false;
+        }
         context = c;
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         try {
@@ -40,6 +56,7 @@ public class UsbAudioDriver {
         catch(PackageManager.NameNotFoundException e) {
             throw new RuntimeException(e);
         }
+        return true;
     }
 
     public static UsbDevice[] getAttachedAudioDevices() {
@@ -124,11 +141,14 @@ public class UsbAudioDriver {
         }
         openDevices[tag] = device;
         try {
-            List<String> result = Shell.SU.run(String.format("chgrp %d %s", uid, device.deviceName));
+            List<String> result = Shell.SU.run(String.format("chown usb:%d %s", uid, device.deviceName));
             if (result == null) {
                 String msg = String.format("Couldn't set group id of usb device %s to %d", device.deviceName, uid);
                 Log.e(LOG_TAG, msg);
                 throw new SecurityException(msg);
+            }
+            else {
+                Log.w(LOG_TAG, String.format("Set group id of usb device %s to %d", device.deviceName, uid));
             }
             return setupDevice(device.portPath, device.descriptor.endpointAddr, device.descriptor.maxPacketSize, device.descriptor.audioInterfaceNum, tag, device.descriptor.controlUnitId);
         }

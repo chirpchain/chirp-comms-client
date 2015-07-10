@@ -99,8 +99,8 @@ public class MainActivity extends ActionBarActivity {
                     @Override
                     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                         if (isChecked) {
-                            monitorDevice = device;
                             AudioPlayback.setup(device.getDescriptor().sampleRate);
+                            monitorDevice = device;
                         }
                         else {
                             monitorDevice = null;

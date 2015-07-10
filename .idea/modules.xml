@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/ChirpCommsClient.iml" filepath="$PROJECT_DIR$/ChirpCommsClient.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/chirpmodem/chirpmodem.iml" filepath="$PROJECT_DIR$/chirpmodem/chirpmodem.iml" />
+      <module fileurl="file://$PROJECT_DIR$/samplingProfilerFacade/samplingProfilerFacade.iml" filepath="$PROJECT_DIR$/samplingProfilerFacade/samplingProfilerFacade.iml" />
       <module fileurl="file://$PROJECT_DIR$/usbdriver/usbdriver.iml" filepath="$PROJECT_DIR$/usbdriver/usbdriver.iml" />
     </modules>
   </component>

@@ -26,6 +26,7 @@ import com.cherrydev.chirpcommsclient.messages.IChirpMessage;
 import com.cherrydev.chirpcommsclient.messages.MessageType;
 import com.cherrydev.chirpcommsclient.messageservice.MessageService;
 import com.cherrydev.chirpcommsclient.messageservice.MessageServiceListener;
+import com.cherrydev.chirpcommsclient.routeservice.BaseRouteServiceListener;
 import com.cherrydev.chirpcommsclient.routeservice.RouteService;
 import com.cherrydev.chirpcommsclient.routeservice.RouteServiceListener;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
@@ -81,10 +82,9 @@ public class MainActivity extends ActionBarActivity {
         mMessageSendButton.setOnClickListener(v -> {
             String text = mMessageText.getText().toString();
             int id = IdGenerator.generate();
-            for(byte to : routeServiceBinding.getService().getConnectedNodes()) {
-                ChirpMessage m = new ChirpMessage(socketService.getNodeId(), to, id, EnumSet.noneOf(IChirpMessage.MessageFlags.class), "Avi", "Joe", text);
-                routeServiceBinding.getService().sendChirpMessage(m);
-            }
+            byte to = 61;
+            ChirpMessage m = new ChirpMessage(socketService.getNodeId(), to, id, EnumSet.noneOf(IChirpMessage.MessageFlags.class), "Avi", "Joe", text);
+            routeService.sendChirpMessage(m);
             mMessageText.setText("");
         });
         updateStatsList();
@@ -93,7 +93,6 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        Log.w(TAG_ACTIVITY, "Memory is " + ( (ActivityManager)getSystemService(ACTIVITY_SERVICE)).getLargeMemoryClass());
         socketServiceBinding = new ServiceBinding<SocketServiceListener, SocketService>(this, SocketService.class) {
             @Override
             protected SocketServiceListener createListener() {
@@ -141,7 +140,12 @@ public class MainActivity extends ActionBarActivity {
         routeServiceBinding = new ServiceBinding<RouteServiceListener, RouteService>(this, RouteService.class) {
             @Override
             protected RouteServiceListener createListener() {
-                return message -> mHandler.post(() ->Toast.makeText(MainActivity.this, "Incoming: " + message.getMessage(), Toast.LENGTH_LONG).show());
+                return new BaseRouteServiceListener() {
+                    @Override
+                    public void chirpReceived(ChirpMessage message) {
+                        mHandler.post(() -> Toast.makeText(MainActivity.this, "Incoming: " + message.getMessage(), Toast.LENGTH_LONG).show());
+                    }
+                };
             }
         }
                 .setOnConnect(s -> this.routeService = s)
@@ -152,6 +156,7 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onStop() {
         socketServiceBinding.disconnect();
+        routeServiceBinding.disconnect();
         super.onStop();
     }
 

@@ -219,7 +219,6 @@ public class LiveFrequencyTransformer extends FrequencyTransformer {
             consumedSamples -= firstSeries.length;
             pendingSamples -= firstSeries.length;
             sampleBuffer.remove(0);
-            System.err.println("Removed some samples");
         }
     }
 

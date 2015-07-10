@@ -8,4 +8,9 @@ public class BaseRouteServiceListener implements RouteServiceListener {
     public void chirpReceived(ChirpMessage message) {
 
     }
+
+    @Override
+    public void configChanged() {
+
+    }
 }

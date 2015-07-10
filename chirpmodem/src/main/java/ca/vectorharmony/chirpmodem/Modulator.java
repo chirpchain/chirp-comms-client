@@ -77,7 +77,7 @@ public class Modulator {
             System.out.println("Queue tail " + sendQueueTail + " head " + sendQueueHead + ". Last symbol was " + nextSym);
         }
         /*
-        while(isSendQueueEmpty() && transmitter.getAvailableBuffer() < idleSilence.length) {
+        while(isSendQueueEmpty() && transmitter.getAvailableBuffer() > idleSilence.length) {
             transmitter.writeAudioBuffer(idleSilence);
         }
         */

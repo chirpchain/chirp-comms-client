@@ -1,16 +1,19 @@
 package com.cherrydev.chirpcommsclient.messages;
 
+import com.cherrydev.chirpcommsclient.util.IdGenerator;
+
+import java.io.Serializable;
 import java.util.EnumSet;
 
-public class ChirpMessage implements IChirpMessage {
+public class ChirpMessage implements IChirpMessage, Serializable {
 
     private byte from;
     private byte to;
     private int messageId;
     private EnumSet<MessageFlags> flags = EnumSet.noneOf(MessageFlags.class);
-    private String sender;
-    private String recipient;
-    private String message;
+    private String sender = "";
+    private String recipient = "";
+    private String message = "";
 
     public ChirpMessage(byte from, byte to, int messageId, EnumSet<MessageFlags> flags, String sender, String recipient, String message) {
         this.from = from;
@@ -20,6 +23,10 @@ public class ChirpMessage implements IChirpMessage {
         this.sender = sender;
         this.recipient = recipient;
         this.message = message;
+    }
+
+    public ChirpMessage() {
+        messageId = IdGenerator.generate();
     }
 
     @Override

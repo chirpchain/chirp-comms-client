@@ -1,1 +1,2 @@
 include ':app', ':chirpmodem', ':usbdriver'
+include ':samplingProfilerFacade'

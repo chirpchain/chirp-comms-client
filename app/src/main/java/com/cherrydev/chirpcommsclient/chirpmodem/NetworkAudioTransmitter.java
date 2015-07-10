@@ -4,8 +4,10 @@ import android.os.Handler;
 import android.util.Log;
 
 import com.cherrydev.chirpcommsclient.util.AudioConvert;
+import com.cherrydev.usbaudiodriver.AudioPlayback;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -20,15 +22,18 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
 
     private static final String TAG_CLASS = "NetworkAudioTransmitter";
 
-    private static final int SENDS_PER_SECOND = 3;
+    private static final int SENDS_PER_SECOND = 4;
 
     private FloatBuffer floatBuf; // Assume in write mode
     private Handler handler;
     private Consumer<short[]> networkSender;
+    private boolean monitorAudio;
     private Timer timer;
 
-    public void initOnThisThread(int sampleRate, Consumer<short[]> networkSender) {
+    public void initOnThisThread(int sampleRate, Consumer<short[]> networkSender, boolean monitorAudio) {
+        if (monitorAudio) AudioPlayback.setup(sampleRate);
         this.networkSender = networkSender;
+        this.monitorAudio = monitorAudio;
         ByteBuffer buf = ByteBuffer.allocateDirect(sampleRate * 4);
         floatBuf = buf.asFloatBuffer();
         floatBuf.clear();
@@ -48,8 +53,8 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
     }
 
     private void sendSamples() {
-        int samplesToSend = floatBuf.capacity() / (SENDS_PER_SECOND - 1);
-        int availableToRead = getAvailableBytes(); // A bit faster than it should be filling
+        int samplesToSend = floatBuf.capacity() / SENDS_PER_SECOND;
+        int availableToRead = getAvailableBytes();
         if (availableToRead > 0) {
             samplesToSend = Math.min(samplesToSend, availableToRead);
             float[] floatSamples = new float[samplesToSend];
@@ -58,6 +63,12 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
             floatBuf.compact();
             //Log.d(TAG_CLASS, "Had " + availableToRead + " available, sent " + samplesToSend + " position is " + floatBuf.position());
             short[] pcm = AudioConvert.convertToPcm(floatSamples, 0, floatSamples.length);
+            if (monitorAudio) {
+                ByteBuffer bb = ByteBuffer.allocate(pcm.length * 2);
+                bb.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(pcm);
+                bb.position(0);
+                AudioPlayback.write(bb.array(), bb.capacity());
+            }
             networkSender.accept(pcm);
         }
     }
