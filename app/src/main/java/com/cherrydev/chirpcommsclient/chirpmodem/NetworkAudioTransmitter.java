@@ -9,6 +9,7 @@ import com.cherrydev.usbaudiodriver.AudioPlayback;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -29,6 +30,7 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
     private Consumer<short[]> networkSender;
     private boolean monitorAudio;
     private Timer timer;
+    private Random r = new Random();
 
     public void initOnThisThread(int sampleRate, Consumer<short[]> networkSender, boolean monitorAudio) {
         if (monitorAudio) AudioPlayback.setup(sampleRate);
@@ -61,6 +63,10 @@ public class NetworkAudioTransmitter extends AudioTransmitter{
             floatBuf.flip();
             floatBuf.get(floatSamples);
             floatBuf.compact();
+            // Add a little noise to simulate real-world reception conditions
+            for(int i = 0; i < floatSamples.length; ++i) {
+                floatSamples[i] += r.nextFloat() * 1e-3f;
+            }
             //Log.d(TAG_CLASS, "Had " + availableToRead + " available, sent " + samplesToSend + " position is " + floatBuf.position());
             short[] pcm = AudioConvert.convertToPcm(floatSamples, 0, floatSamples.length);
             if (monitorAudio) {
