@@ -9,7 +9,6 @@ import com.appfour.android.samplingprofiler.SamplingProfilerFacade;
 import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.cursors.IntObjectCursor;
 import com.cherrydev.chirpcommsclient.chirpmodem.DummyAudioReceiver;
-import com.cherrydev.chirpcommsclient.chirpmodem.MicAudioReceiver;
 import com.cherrydev.chirpcommsclient.chirpmodem.NetworkAudioReceiver;
 import com.cherrydev.chirpcommsclient.chirpmodem.NetworkAudioTransmitter;
 import com.cherrydev.chirpcommsclient.chirpmodem.SpeakerAudioTransmitter;
@@ -33,8 +32,9 @@ import java.util.TimerTask;
 import ca.vectorharmony.chirpmodem.AudioReceiver;
 import ca.vectorharmony.chirpmodem.AudioTransmitter;
 import ca.vectorharmony.chirpmodem.PacketCodec;
+import ca.vectorharmony.chirpmodem.util.SymbolSentListener;
 
-public class AcousticService extends BaseService<AcousticServiceListener> {
+public class AcousticService extends BaseService<AcousticServiceListener> implements SymbolSentListener {
     private static final String TAG_SERVICE = "AcousticService";
     private static final int SAMPLE_RATE = 22050;
     private HandlerThread acousticPumpThread;
@@ -48,6 +48,8 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
     private AcousticPackage leftSpeakerPackage;
     private AcousticPackage rightSpeakerPackage;
     private AcousticPackage dummyAcousticPackage; // This will be shared, just ignore the peerId
+
+
 
     private class AcousticPackage {
         AcousticPackage(PacketCodec codec, AudioReceiver receiver, AudioTransmitter transmitter, byte peerId) {
@@ -80,6 +82,11 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
     public AcousticService() {
     }
 
+    @Override
+    public void symbolSent(int symbol) {
+        forEachListener(l -> l.symbolSent(symbol));
+    }
+
 
     public boolean sendMessage(byte to, byte[] message) {
         // Live dangerously, this isn't strictly thread safe
@@ -102,9 +109,10 @@ public class AcousticService extends BaseService<AcousticServiceListener> {
         acousticPumpHandler.post(() -> {
             if (dummyAcousticPackage == null) {
                 SpeakerAudioTransmitter t = new SpeakerAudioTransmitter();
-                t.initOnThisThread(false, SAMPLE_RATE);
+                t.initOnThisThread(true, SAMPLE_RATE);
                 AudioReceiver r = new DummyAudioReceiver();
                 PacketCodec c = new PacketCodec(r, t);
+                c.setSymbolSentListener(this);
                 dummyAcousticPackage = new AcousticPackage(c, r, t, (byte) 0);
             }
             acousticPackages.put(nodeId, dummyAcousticPackage);

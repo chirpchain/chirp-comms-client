@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.cherrydev.chirpcommsclient.acousticservice.AcousticService;
 import com.cherrydev.chirpcommsclient.acousticservice.AcousticServiceListener;
+import com.cherrydev.chirpcommsclient.acousticservice.BaseAcousticServiceListener;
 import com.cherrydev.chirpcommsclient.messages.ChirpBinaryMessage;
 import com.cherrydev.chirpcommsclient.messages.MessageType;
 import com.cherrydev.chirpcommsclient.socketmessages.ByteMessage;
@@ -50,7 +51,12 @@ public class MessageService extends BaseService<MessageServiceListener> {
         acousticServiceBinding = new ServiceBinding<AcousticServiceListener, AcousticService>(this, AcousticService.class) {
             @Override
             protected AcousticServiceListener createListener() {
-                return (f,t,m) -> onReceiveMessage(f, m);
+                return new BaseAcousticServiceListener() {
+                    @Override
+                    public void receiveAcousticMessage(byte from, byte to, byte[] message) {
+                        onReceiveMessage(from, message);
+                    }
+                };
             }
         }
                 .setOnConnect(s -> acousticService = s)

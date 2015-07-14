@@ -1,7 +1,9 @@
 package com.cherrydev.chirpcommsclient;
 
 import android.app.Activity;
+import android.app.Fragment;
 import android.app.FragmentTransaction;
+import android.content.res.AssetFileDescriptor;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
@@ -16,6 +18,12 @@ import com.cherrydev.chirpcommsclient.routeservice.RouteServiceListener;
 import com.cherrydev.chirpcommsclient.socketservice.SocketService;
 import com.cherrydev.chirpcommsclient.socketservice.SocketServiceListener;
 import com.cherrydev.chirpcommsclient.util.ServiceBinding;
+import com.felipecsl.gifimageview.library.GifImageView;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.channels.FileChannel;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -33,12 +41,27 @@ public class ChirpMainActivity extends Activity {
     @Bind(R.id.fragment_blinky_lights_container)
     FrameLayout blinkyLightsContainer;
 
+    @Bind(R.id.gif_background_view)
+    GifImageView gifBackgroundView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AssetFileDescriptor gifFd = getResources().openRawResourceFd(R.raw.chirpchainanimated);
+        byte[] buf = new byte[(int) gifFd.getLength()];
+        try {
+            InputStream gifIs = gifFd.createInputStream();
+            gifIs.read(buf);
+            gifIs.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
 
         setContentView(R.layout.activity_chirp_main);
         ButterKnife.bind(this);
+        gifBackgroundView.setBytes(buf);
         FragmentTransaction ft = getFragmentManager().beginTransaction();
         ft.add(R.id.fragment_message_container, ChirpEnterMessageFragment.newInstance());
         ft.add(R.id.fragment_blinky_lights_container, BlinkyLightsFragment.newInstance());
@@ -48,11 +71,13 @@ public class ChirpMainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        gifBackgroundView.startAnimation();
         connectServices();
     }
 
     @Override
     protected void onStop() {
+        gifBackgroundView.stopAnimation();
         disconnectServices();
         super.onStop();
     }
@@ -62,6 +87,8 @@ public class ChirpMainActivity extends Activity {
     }
 
     public void switchToCreateMessage() {
+        Fragment f = getFragmentManager().findFragmentById(R.id.fragment_message_container);
+        if (f instanceof ChirpEnterMessageFragment) return;
         FragmentTransaction ft = getFragmentManager().beginTransaction();
         ft.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
         ft.replace(R.id.fragment_message_container, ChirpEnterMessageFragment.newInstance());
@@ -69,6 +96,8 @@ public class ChirpMainActivity extends Activity {
     }
 
     public void switchToShowMessages() {
+        Fragment f = getFragmentManager().findFragmentById(R.id.fragment_message_container);
+        if (f instanceof MessageListFragment) return;
         FragmentTransaction ft = getFragmentManager().beginTransaction();
         ft.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
         ft.replace(R.id.fragment_message_container, MessageListFragment.newInstance());

@@ -20,13 +20,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="From:"
+            android:text="From: (optional, max 15)"
             android:id="@+id/textView2"
             android:layout_weight="0"
             android:layout_gravity="center_vertical" />
 
         <EditText
-            android:layout_width="300dp"
+            android:layout_width="200dp"
             android:layout_height="wrap_content"
             android:id="@+id/message_from_text"
             android:layout_weight="0"
@@ -34,19 +34,22 @@
             android:maxLength="15"
             android:imeOptions="actionNext"
             android:inputType="textNoSuggestions"
-            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
+            android:background="@color/message_text_dark_grey"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="To:"
+            android:text="To: (optional, max 15)"
             android:id="@+id/textView3"
             android:layout_weight="0"
             android:layout_gravity="center_vertical" />
 
         <EditText
-            android:layout_width="300dp"
+            android:layout_width="200dp"
             android:layout_height="wrap_content"
             android:id="@+id/message_to_text"
             android:layout_weight="0"
@@ -54,7 +57,10 @@
             android:maxLength="15"
             android:imeOptions="actionNext"
             android:inputType="textNoSuggestions"
-            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
+            android:background="@color/message_text_dark_grey"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp" />
     </LinearLayout>
 
     <LinearLayout
@@ -73,7 +79,8 @@
             android:singleLine="true"
             android:maxLength="60"
             android:imeOptions="actionSend"
-            android:inputType="textNoSuggestions" />
+            android:inputType="textNoSuggestions"
+            android:background="@color/message_text_dark_grey" />
 
         <Button
             android:layout_width="wrap_content"
@@ -90,5 +97,16 @@
         android:id="@+id/textView"
         android:layout_above="@+id/messageContentContainer"
         android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enter a message to send to another station.  Choose destination on the next screen."
+        android:id="@+id/textView4"
+        android:textColor="@android:color/holo_orange_light"
+        android:textStyle="bold|italic"
+        android:textAppearance="@android:style/TextAppearance.Large"
+        android:layout_above="@+id/linearLayout"
+        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>

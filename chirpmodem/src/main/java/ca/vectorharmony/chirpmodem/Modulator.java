@@ -2,6 +2,7 @@ package ca.vectorharmony.chirpmodem;
 
 import ca.vectorharmony.chirpmodem.util.CodeLibrary;
 import ca.vectorharmony.chirpmodem.util.FrequencyTransformer;
+import ca.vectorharmony.chirpmodem.util.SymbolSentListener;
 
 /**
  * Created by jlunder on 6/29/15.
@@ -18,6 +19,7 @@ public class Modulator {
     private int[] sendQueue = new int[MAX_SYMBOL_BUFFER];
     private int sendQueueHead = 0;
     private int sendQueueTail = 0;
+    private SymbolSentListener listener;
 
     public CodeLibrary getLibrary() {
         return library;
@@ -25,6 +27,10 @@ public class Modulator {
 
     public Modulator(AudioTransmitter transmitter) {
         this.transmitter = transmitter;
+    }
+
+    void setListener(SymbolSentListener listener) {
+        this.listener = listener;
     }
 
     public void sendSymbols(int[] symbols) {
@@ -75,6 +81,9 @@ public class Modulator {
             sendQueueTail++;
             sendQueueTail %= sendQueue.length;
             System.out.println("Queue tail " + sendQueueTail + " head " + sendQueueHead + ". Last symbol was " + nextSym);
+            if (listener != null) {
+                listener.symbolSent(nextSym);
+            }
         }
         /*
         while(isSendQueueEmpty() && transmitter.getAvailableBuffer() > idleSilence.length) {

@@ -10,6 +10,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
@@ -68,6 +69,12 @@ public class ChirpEnterMessageFragment extends Fragment {
     }
 
     @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getActivity().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+    }
+
+    @Override
     public void onStart() {
         super.onStart();
         scheduleTextTimeout();
@@ -119,16 +126,6 @@ public class ChirpEnterMessageFragment extends Fragment {
     }
 
     private boolean checkContents() {
-        if (fromText.getText().toString().trim().length() == 0) {
-            showContentWarning("Oops, please enter 'From'");
-            fromText.requestFocus();
-            return false;
-        }
-        if (toText.getText().toString().trim().length() == 0) {
-            showContentWarning("Oops, please enter 'To");
-            toText.requestFocus();
-            return false;
-        }
         if (messageText.getText().toString().trim().length() == 0) {
             showContentWarning("Oops, please enter a message!");
             messageText.requestFocus();
@@ -148,9 +145,9 @@ public class ChirpEnterMessageFragment extends Fragment {
     private void onSendMessage() {
         if (!checkContents()) return;
         ChirpMessage chirpMessage = new ChirpMessage();
-        chirpMessage.setMessage(messageText.getText().toString());
-        chirpMessage.setSender(fromText.getText().toString());
-        chirpMessage.setRecipient(toText.getText().toString());
+        chirpMessage.setMessage(messageText.getText().toString().trim());
+        chirpMessage.setSender(fromText.getText().toString().trim());
+        chirpMessage.setRecipient(toText.getText().toString().trim());
         messageText.setText("");
         fromText.setText("");
         toText.setText("");

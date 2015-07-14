@@ -3,6 +3,7 @@ package com.cherrydev.chirpcommsclient.messagestore;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
 
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
 import com.cherrydev.chirpcommsclient.messageservice.MessageServiceListener;
@@ -17,6 +18,7 @@ import java.util.Date;
 import static com.cherrydev.chirpcommsclient.messagestore.ChirpMessageStoreHelper.*;
 
 public class MessageStoreService extends BaseService<MessageStoreListener> {
+    private static final String TAG = "MessageStoreService";
     private RouteService routeService;
     private ServiceBinding<RouteServiceListener, RouteService> routeServiceBinding;
     private SQLiteDatabase db;
@@ -25,13 +27,15 @@ public class MessageStoreService extends BaseService<MessageStoreListener> {
     }
 
     public static class MessageDisplay {
+        public final String fromNodeName;
         public final String from;
         public final String to;
         public final int id;
         public final Date date;
         public final String message;
 
-        public MessageDisplay(int id, String from, String to, String message, Date date) {
+        public MessageDisplay(int id, String fromNodeName, String from, String to, String message, Date date) {
+            this.fromNodeName = fromNodeName;
             this.from = from;
             this.to = to;
             this.id = id;
@@ -61,6 +65,7 @@ public class MessageStoreService extends BaseService<MessageStoreListener> {
     public MessageDisplay fromCursor(Cursor c) {
         return new MessageDisplay(
                 c.getInt(c.getColumnIndex(COLUMN_ID)),
+                c.getString(c.getColumnIndex(COLUMN_FROM_NODE_NAME)),
                 c.getString(c.getColumnIndex(COLUMN_SENDER)),
                 c.getString(c.getColumnIndex(COLUMN_RECIPIENT)),
                 c.getString(c.getColumnIndex(COLUMN_MESSAGE)),
@@ -72,16 +77,27 @@ public class MessageStoreService extends BaseService<MessageStoreListener> {
         long when = System.currentTimeMillis();
         ContentValues v = new ContentValues();
         v.put(COLUMN_ID, m.getMessageId());
+        v.put(COLUMN_FROM_NODE_NAME, routeService.getAllNodes().get(m.getFrom()).getName());
         v.put(COLUMN_SENDER, m.getSender());
         v.put(COLUMN_RECIPIENT, m.getRecipient());
         v.put(COLUMN_MESSAGE, m.getMessage());
         v.put(COLUMN_DATE, when);
         db.insert(TABLE_MESSAGES, null, v);
+        Log.i(TAG, "Wrote a message.");
         forEachListener(l -> l.messagesChanged());
     }
 
     public Cursor getAllMessagesByteDate(boolean descending) {
         return db.query(TABLE_MESSAGES, null, null, null, null, null, COLUMN_DATE + (descending ? " DESC" : ""));
+    }
+
+    public MessageDisplay getLastMessage() {
+        Cursor c = db.query(TABLE_MESSAGES, null, null, null,null, null, COLUMN_DATE + " DESC", "1");
+        if (! c.moveToFirst()) {
+            c.close();
+            return null;
+        }
+        return fromCursor(c);
     }
 
     @Override
@@ -93,6 +109,6 @@ public class MessageStoreService extends BaseService<MessageStoreListener> {
 
     @Override
     protected void handleListenerException(Throwable e) {
-
+        Log.w(TAG, e);
     }
 }

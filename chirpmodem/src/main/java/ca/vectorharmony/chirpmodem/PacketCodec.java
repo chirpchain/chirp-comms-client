@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import ca.vectorharmony.chirpmodem.util.CodeLibrary;
+import ca.vectorharmony.chirpmodem.util.SymbolSentListener;
 
 /**
  * Created by jlunder on 6/29/15.
@@ -126,6 +127,10 @@ public class PacketCodec {
 
         this.modulator = new Modulator(transmitter);
         this.demodulator = new Demodulator(receiver);
+    }
+
+    public void setSymbolSentListener(SymbolSentListener listener) {
+        modulator.setListener(listener);
     }
 
     private static int makeHammingCode(int d) {

@@ -1,18 +1,33 @@
-<LinearLayout
+<FrameLayout android:layout_height="match_parent" android:layout_width="match_parent" xmlns:android="http://schemas.android.com/apk/res/android"
+    android:background="@color/animated_image_background">
+
+    <view
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        class="com.felipecsl.gifimageview.library.GifImageView"
+        android:id="@+id/gif_background_view"
+        android:focusableInTouchMode="false"
+        android:tint="#c8282828" />
+
+    <LinearLayout
     android:layout_height="match_parent" android:layout_width="match_parent"
     android:orientation="vertical"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+        android:background="@android:color/transparent">
 <FrameLayout
     android:id="@+id/fragment_blinky_lights_container"
     android:layout_weight="1"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
 </FrameLayout>
 
     <FrameLayout
         android:id="@+id/fragment_message_container"
         android:layout_weight="1"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent">
     </FrameLayout>
 </LinearLayout>
+
+</FrameLayout>

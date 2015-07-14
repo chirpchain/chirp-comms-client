@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -16,6 +17,7 @@ import com.cherrydev.chirpcommsclient.socketmessages.ChirpSocketMessage;
 import com.cherrydev.chirpcommsclient.util.BaseService;
 import com.cherrydev.chirpcommsclient.util.ChirpNode;
 import com.cherrydev.chirpcommsclient.util.IdGenerator;
+import com.cherrydev.chirpcommsclient.util.RunnableTimerTask;
 import com.github.nkzawa.socketio.client.Ack;
 import com.github.nkzawa.socketio.client.IO;
 import com.github.nkzawa.socketio.client.Socket;
@@ -33,6 +35,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * The socket service is responsible for any communications between the client application
@@ -61,6 +65,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private static final String LOGIN_EVENT = "login";
     private static final String LIST_PEERS_EVENT = "listPeers";
     private static final String PING_EVENT = "ping";
+    private static final String CLIENT_PING = "clientPing";
 
     private boolean hasStarted;
     private boolean ready;
@@ -69,6 +74,8 @@ public class SocketService extends BaseService<SocketServiceListener> {
     private byte mNodeId = -1;
     private Set<Byte> connectedPeers = new HashSet<>();
     private IntLongMap recievedDataStats = new IntLongHashMap();
+    private Timer pingTimer;
+    private Handler handler = new Handler();
 
     private String serverUrl;
 
@@ -106,6 +113,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
         }).then((x) -> {
             runSocketServerTask.run();
         });
+
     }
 
     public Set<Byte> getConnectedPeers() {
@@ -249,6 +257,7 @@ public class SocketService extends BaseService<SocketServiceListener> {
                     Ack ack = (Ack) args[0];
                     ack.call();
                 }
+                gotPing();
             });
             mSocket.on(SET_NODE_INFO_EVENT, args -> {
                 try {
@@ -288,9 +297,10 @@ public class SocketService extends BaseService<SocketServiceListener> {
                 else {
                     Log.e(TAG_SOCKET, "Socket error, but no throwable! Args were:" + (args.length == 1 ? args[0].toString() : Arrays.toString(args)));
                 }
-                if (! mSocket.connected()) mSocket.connect();
+                reconnect();
             });
             mSocket.connect();
+            runPingTimer();
         }
         catch (URISyntaxException e) {
             throw new RuntimeException(e);
@@ -307,6 +317,17 @@ public class SocketService extends BaseService<SocketServiceListener> {
         return true;
     }
 
+    private void reconnect() {
+        try {
+            mSocket.disconnect();
+            Log.w(TAG_SOCKET, "reconnecting!!");
+            handler.postDelayed(() -> mSocket.connect(), 2000);
+        }
+        catch (Exception e) {
+            Log.w(TAG_SOCKET, e);
+        }
+    }
+
     private void onConnect() {
         if (configuredNodeId >= 0) {
             Log.i(TAG_SOCKET, "Logging in with configured node id " + configuredNodeId);
@@ -319,6 +340,28 @@ public class SocketService extends BaseService<SocketServiceListener> {
         mSocket.emit(LIST_PEERS_EVENT, 0);
         forEachListener(SocketServiceListener::connected);
         checkReady();
+    }
+
+    private volatile long lastPing;
+
+    private void runPingTimer() {
+        if (pingTimer == null) {
+            Log.i(TAG_SOCKET, "Running ping timer");
+            TimerTask pingTask = new RunnableTimerTask(() -> {
+                if ((!mSocket.connected()) || System.currentTimeMillis() - lastPing > 60000) {
+                    Log.w(TAG_SOCKET, "Ping timed out!!  Trying to reconnect");
+                    reconnect();
+                    lastPing = 0;
+                }
+            });
+            pingTimer = new Timer("Ping Timer");
+            lastPing = System.currentTimeMillis();
+            pingTimer.scheduleAtFixedRate(pingTask, 0, 5000);
+        }
+    }
+
+    private void gotPing() {
+        lastPing = System.currentTimeMillis();
     }
 
     private void onReady() {

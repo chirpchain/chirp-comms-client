@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
 
@@ -12,11 +13,12 @@ import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
  */
 public class ChirpMessageStoreHelper extends SQLiteOpenHelper {
 
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 5;
     private static final String DATABASE_NAME = "chirpDb.db";
     public static final String TABLE_MESSAGES = "messages";
 
     public static final String COLUMN_ID = "_id";
+    public static final String COLUMN_FROM_NODE_NAME = "FROMNODE";
     public static final String COLUMN_SENDER = "SENDER";
     public static final String COLUMN_RECIPIENT = "RECIPIENT";
     public static final String COLUMN_MESSAGE = "MESSAGE";
@@ -31,6 +33,7 @@ public class ChirpMessageStoreHelper extends SQLiteOpenHelper {
         String createMessageTableSql =
                 "CREATE TABLE " + TABLE_MESSAGES + " ( " +
                         COLUMN_ID +" INTEGER PRIMARY KEY, " +
+                        COLUMN_FROM_NODE_NAME + " TEXT, " +
                         COLUMN_SENDER + " TEXT, " +
                         COLUMN_RECIPIENT +" TEXT, " +
                         COLUMN_MESSAGE + " TEXT, " +
@@ -40,6 +43,7 @@ public class ChirpMessageStoreHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        Log.w("ChirpMessageStoreHelper", "Updating database!!");
         db.execSQL("DROP TABLE " + TABLE_MESSAGES);
         onCreate(db);
     }

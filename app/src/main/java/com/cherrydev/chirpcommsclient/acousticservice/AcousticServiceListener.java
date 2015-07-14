@@ -5,4 +5,5 @@ package com.cherrydev.chirpcommsclient.acousticservice;
  */
 public interface AcousticServiceListener {
     void receiveAcousticMessage(byte from, byte to, byte[] message);
+    void symbolSent(int symbol);
 }

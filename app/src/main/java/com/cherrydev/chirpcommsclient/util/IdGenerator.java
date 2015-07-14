@@ -14,6 +14,6 @@ public class IdGenerator {
     public static int generate() {
         // For now, just random...
         int id = random.nextInt();
-        return id | (highByte << 24);
+        return Math.abs(id | (highByte << 24));
     }
 }

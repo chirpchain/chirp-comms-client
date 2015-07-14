@@ -165,6 +165,7 @@ public class RouteService extends BaseService<RouteServiceListener> {
             boolean sent = acousticService.sendMessage(destNode.getId(), messageBytes);
             if (!sent) return false;
             int fakeHackyDelay = messageBytes.length * 1900 + 3000; // 5s per byte + 3s for framing?  Sure.
+            //int fakeHackyDelay = 0;
             handler.postDelayed(() -> {
                 Log.i(TAG_SERVICE, "Actually delivering message now!");
                 socketService.sendChirpData(sm);
@@ -266,10 +267,12 @@ public class RouteService extends BaseService<RouteServiceListener> {
 
     private void handleChirpReceived(ChirpMessage message) {
         Log.d(TAG_SERVICE, "Route service received a chirp message from " + message.getFrom() + " to " + message.getTo());
-        forEachListener(l -> l.chirpReceived(message));
-        if (message.getTo() != nodeInfo.getId()) {
-            sendChirpMessage(message);
-        }
+        handler.post(() -> {
+            forEachListener(l -> l.chirpReceived(message));
+            if (message.getTo() != nodeInfo.getId()) {
+                sendChirpMessage(message);
+            }
+        });
     }
 
     @Override

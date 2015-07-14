@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CursorAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.cherrydev.chirpcommsclient.messages.ChirpMessage;
@@ -45,8 +46,14 @@ public class MessageListFragment extends ListFragment {
             @Override
             protected MessageStoreListener createListener() {
                 return () -> {
-                    Log.i(TAG, "Messages changed, changing the cursor");
-                    if (currentCursorAdaptor != null) currentCursorAdaptor.changeCursor(getAllMessagesCursor());
+                    if (currentCursorAdaptor != null) {
+                        Log.i(TAG, "Messages changed, changing the cursor");
+                        currentCursorAdaptor.changeCursor(getAllMessagesCursor());
+                        getListView().smoothScrollToPosition(0);
+                    }
+                    else {
+                        Log.i(TAG, "Hmm, no cursor adaptor");
+                    }
                 };
             }
         }.setOnConnect(s -> {
@@ -85,7 +92,7 @@ public class MessageListFragment extends ListFragment {
                 MessageStoreService.MessageDisplay m = messageStoreService.fromCursor(cursor);
                 setText(R.id.message_item_id, view, "Id: " + m.id);
                 setText(R.id.message_item_recipient, view, "To: " + m.to);
-                setText(R.id.message_item_sender, view, "From: " + m.from);
+                setText(R.id.message_item_sender, view, "From: " + m.from + " @ " + m.fromNodeName);
                 setText(R.id.message_item_message, view, m.message);
                 setText(R.id.message_item_date, view, "Date: " + prettyTime.format(m.date));
             }

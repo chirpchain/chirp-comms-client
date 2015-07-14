@@ -12,7 +12,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="From: Foooffy"
+            android:text="From: Foooffy @ Viking Camp"
             android:id="@+id/message_item_sender"
             android:paddingLeft="10dp"
             android:textStyle="bold" />
